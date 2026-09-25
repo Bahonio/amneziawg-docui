@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Require cleared distribution license
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/v*.*.*) ;;
+            *) echo 'Release must run from a version tag.' >&2; exit 1 ;;
+          esac
+          test -s LICENSE || {
+            echo 'Public release blocked: the project license is missing.' >&2
+            exit 1
+          }
+          test -s LICENSES/Apache-2.0.txt
+          test -s LICENSES/MPL-2.0.txt
+          test -s NOTICE
+          test -s THIRD_PARTY_NOTICES.txt
+          grep -Fq '005dfc1b120816c2d4a3f4f0292d2f7234d0413c' NOTICE
+          grep -Fq 'https://github.com/Bahonio/awg-docui' web/static/app.js
+          sh scripts/check-licenses.sh
+      - run: make test-installer-safety
+      - run: make test-installer-sandbox
+      - run: go test -race ./...
+      - run: go vet ./...
+
+  agent:
+    needs: verify
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build static host agent
+        env:
+          GOARCH: ${{ matrix.arch }}
+        run: CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o awg-docui-agent-linux-${GOARCH} ./cmd/host-agent
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agent-${{ matrix.arch }}
+          path: awg-docui-agent-linux-${{ matrix.arch }}
+          if-no-files-found: error
+
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/bahonio/awg-docui
+          flavor: latest=auto
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+      - name: Resolve reproducible image date
+        run: echo "BUILD_DATE=$(git show -s --format=%cI HEAD)" >> "$GITHUB_ENV"
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  github-release:
+    needs: [agent, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: agent-*
+          merge-multiple: true
+          path: dist
+      - name: Assemble release installer
+        run: |
+          mkdir -p dist/bundle/packaging dist/bundle/scripts dist/bundle/LICENSES
+          install -m 0755 install.sh install-host-agent.sh uninstall-host-agent.sh dist/bundle/
+          install -m 0755 scripts/check-agent-unit.sh dist/bundle/scripts/
+          install -m 0644 packaging/awg-docui-agent.service packaging/awg-docui-vpn@.service dist/bundle/packaging/
+          install -m 0644 docker-compose.yml .env.example dist/bundle/
+          install -m 0644 LICENSE NOTICE THIRD_PARTY_NOTICES.txt dist/bundle/
+          install -m 0644 LICENSES/Apache-2.0.txt LICENSES/MPL-2.0.txt dist/bundle/LICENSES/
+          printf '%s\n' "${GITHUB_REF_NAME}" > dist/bundle/VERSION
+          tar -C dist/bundle -czf dist/awg-docui-install-bundle.tar.gz .
+          install -m 0755 install.sh dist/awg-docui-install.sh
+          install -m 0644 LICENSE NOTICE THIRD_PARTY_NOTICES.txt dist/
+          install -m 0644 LICENSES/Apache-2.0.txt dist/Apache-2.0.txt
+          install -m 0644 LICENSES/MPL-2.0.txt dist/MPL-2.0.txt
+      - name: Publish installer, binaries and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum awg-docui-agent-linux-* awg-docui-install-bundle.tar.gz awg-docui-install.sh LICENSE NOTICE Apache-2.0.txt MPL-2.0.txt THIRD_PARTY_NOTICES.txt > SHA256SUMS
+          gh release create "${GITHUB_REF_NAME}" \
+            awg-docui-agent-linux-* \
+            awg-docui-install-bundle.tar.gz \
+            awg-docui-install.sh \
+            LICENSE \
+            NOTICE \
+            Apache-2.0.txt \
+            MPL-2.0.txt \
+            THIRD_PARTY_NOTICES.txt \
+            SHA256SUMS \
+            --repo "${GITHUB_REPOSITORY}" \
+            --generate-notes \
+            --verify-tag

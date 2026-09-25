@@ -1,0 +1,40 @@
+AWG DocUI
+Copyright 2026 Bahonio
+
+AWG DocUI is licensed as a combined work under the GNU Affero General Public
+License, version 3 or any later version. See LICENSE.
+
+This product contains code derived from:
+
+    amneziawg-ui
+    https://github.com/mycelium-mesh/amneziawg-ui
+    Upstream history through commit:
+    5dc7ed2de135df17b0fafc7f9ce0db7807332e52
+
+The upstream project is licensed under the Apache License, Version 2.0. A copy
+of that license is provided in LICENSES/Apache-2.0.txt. AWG DocUI includes
+substantial architectural, backend, packaging, installer, and interface
+modifications by Bahonio.
+
+Public permission evidence:
+
+    https://github.com/mycelium-mesh/amneziawg-ui/issues/9
+    https://github.com/mycelium-mesh/amneziawg-ui/issues/9#issuecomment-5815340799
+    https://github.com/mycelium-mesh/amneziawg-ui/commit/005dfc1b120816c2d4a3f4f0292d2f7234d0413c
+
+Modified inherited source documents carry a modification and SPDX notice at
+the top of the file. The machine-generated go.sum file and JSON file
+e2e/package.json cannot carry comments; both differ from the inherited
+snapshot and are identified here as modified by Bahonio.
+
+Third-party dependency and embedded-asset license texts are collected in
+THIRD_PARTY_NOTICES.txt. The Manrope font retains its original SIL Open Font
+License text in web/static/fonts/Manrope-LICENSE.txt. The container includes
+only the static AWG DocUI binary, its notices, and the Mozilla CA certificate
+bundle supplied by Alpine's ca-certificates package; the corresponding
+MPL-2.0 text is in LICENSES/MPL-2.0.txt. No Alpine userspace is present in the
+final scratch image.
+
+AWG DocUI is an independent community project. It is not affiliated with or
+endorsed by Amnezia or mycelium-mesh. Names and trademarks belong to their
+respective owners.

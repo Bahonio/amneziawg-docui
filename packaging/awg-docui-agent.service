@@ -1,0 +1,27 @@
+[Unit]
+Description=AWG DocUI host management agent
+Documentation=https://github.com/Bahonio/awg-docui
+After=local-fs.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+EnvironmentFile=-/etc/awg-docui/agent.env
+ExecStart=/usr/local/sbin/awg-docui-agent
+Restart=on-failure
+RestartSec=2s
+RuntimeDirectory=awg-docui
+RuntimeDirectoryMode=0750
+UMask=0007
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/amnezia/amneziawg /run/awg-docui /etc/systemd/system/multi-user.target.wants
+
+[Install]
+WantedBy=multi-user.target

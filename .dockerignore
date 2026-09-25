@@ -1,0 +1,11 @@
+# Derived from mycelium-mesh/amneziawg-ui (Apache-2.0) and modified by Bahonio.
+# SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later
+
+.git/
+.github/
+*.bin
+*.tar
+.env
+.DS_Store
+design/
+e2e/

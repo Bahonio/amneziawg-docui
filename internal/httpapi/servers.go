@@ -1,0 +1,101 @@
+// Derived from mycelium-mesh/amneziawg-ui (Apache-2.0) and modified by Bahonio.
+// SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later
+
+package httpapi
+
+import (
+	"fmt"
+
+	"github.com/gofiber/fiber/v3"
+
+	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/awg-docui/internal/manager"
+)
+
+func (h *Handlers) getServers(c fiber.Ctx) error {
+	return c.JSON(publicServers(h.mgr.Servers()))
+}
+
+func (h *Handlers) createServer(c fiber.Ctx) error {
+	var req api.CreateServerRequest
+	if err := decode(c, &req); err != nil {
+		return fail(c, err)
+	}
+	srv, err := h.mgr.CreateServer(req)
+	if err != nil {
+		return fail(c, err)
+	}
+	return c.JSON(srv)
+}
+
+func (h *Handlers) updateServerEndpoint(c fiber.Ctx) error {
+	var req api.UpdateServerEndpointRequest
+	if err := decode(c, &req); err != nil {
+		return fail(c, err)
+	}
+	if req.Endpoint == nil {
+		return fail(c, fmt.Errorf("endpoint is required: %w", manager.ErrInvalid))
+	}
+	srv, err := h.mgr.UpdateServerEndpoint(c.Params("id"), *req.Endpoint)
+	if err != nil {
+		return fail(c, err)
+	}
+	return c.JSON(srv)
+}
+
+func (h *Handlers) deleteServer(c fiber.Ctx) error {
+	id := c.Params("id")
+	if err := h.mgr.DeleteServer(id); err != nil {
+		return fail(c, err)
+	}
+	return c.JSON(api.ActionResult{Status: "deleted", ServerID: id})
+}
+
+func (h *Handlers) startServer(c fiber.Ctx) error {
+	id := c.Params("id")
+	if err := h.mgr.StartServer(id); err != nil {
+		return fail(c, err)
+	}
+	return c.JSON(api.ActionResult{Status: "started", ServerID: id})
+}
+
+func (h *Handlers) stopServer(c fiber.Ctx) error {
+	id := c.Params("id")
+	if err := h.mgr.StopServer(id); err != nil {
+		return fail(c, err)
+	}
+	return c.JSON(api.ActionResult{Status: "stopped", ServerID: id})
+}
+
+func (h *Handlers) getServerConfig(c fiber.Ctx) error {
+	cfg, err := h.mgr.ServerConfig(c.Params("id"))
+	if err != nil {
+		return fail(c, err)
+	}
+	return c.JSON(cfg)
+}
+
+func (h *Handlers) downloadServerConfig(c fiber.Ctx) error {
+	cfg, err := h.mgr.ServerConfig(c.Params("id"))
+	if err != nil {
+		return fail(c, err)
+	}
+	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.conf"`, cfg.Interface))
+	c.Set("Content-Type", "text/plain; charset=utf-8")
+	return c.SendString(cfg.ConfigContent)
+}
+
+func (h *Handlers) getServerInfo(c fiber.Ctx) error {
+	info, err := h.mgr.ServerInfo(c.Params("id"))
+	if err != nil {
+		return fail(c, err)
+	}
+	info.Clients = publicClients(info.Clients)
+	return c.JSON(info)
+}
+
+// getTraffic is what the page polls: every counter it shows in one
+// response, so a refresh costs one request rather than one per server.
+func (h *Handlers) getTraffic(c fiber.Ctx) error {
+	return c.JSON(h.mgr.TrafficSnapshot())
+}

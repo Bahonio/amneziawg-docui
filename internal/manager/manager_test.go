@@ -1,0 +1,120 @@
+// Derived from mycelium-mesh/amneziawg-ui (Apache-2.0) and modified by Bahonio.
+// SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later
+
+package manager
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/awg-docui/internal/awg"
+	"github.com/Bahonio/awg-docui/internal/awg/awgtest"
+	"github.com/Bahonio/awg-docui/internal/config"
+	"github.com/Bahonio/awg-docui/internal/store"
+)
+
+// newTestManager builds a manager whose single server has a real .conf on
+// disk and whose typed test backend reports every interface down. Tests stub
+// its operation recorder for anything else.
+func newTestManager(t *testing.T) (*Manager, *awgtest.Runner) {
+	t.Helper()
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "wg-s1.conf")
+	if err := os.WriteFile(confPath, []byte("[Interface]\nPrivateKey = PRIV\nS1 = 50\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	run := awgtest.New()
+	settings := config.Settings{
+		WebUIPort: 54845, DefaultMTU: 1280, DefaultSubnet: "10.0.0.0/24", DefaultPort: 54844,
+		DNSServers: []string{"8.8.8.8"}, EnableObfuscation: true,
+		ConfigFile: filepath.Join(dir, "web_config.json"), WireguardConfigDir: dir,
+	}
+	m := &Manager{
+		settings: settings,
+		store:    store.New(settings.ConfigFile),
+		tools:    awg.New(run),
+		statuses: map[string]statusObservation{},
+		cfg: &store.AppConfig{SchemaVersion: store.SchemaVersion, Servers: []api.Server{{
+			ID: "s1", Name: "srv", Interface: "wg-test-absent", ConfigPath: confPath,
+			Subnet: "10.0.1.0/24", ServerIP: "10.0.1.1", MTU: 1280, Port: 54844,
+			Status: "stopped", ObfuscationEnabled: true,
+			ObfuscationParams: &api.ObfuscationParams{S1: 50, S2: 60, S3: 20, S4: 16, MTU: 1280},
+			Clients:           []api.Client{},
+		}}},
+	}
+	return m, run
+}
+
+// New brings an older config up to date and writes the result back, so the
+// migration does not run again on the next start.
+func TestNewMigratesAndSavesAnOldConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "web_config.json")
+	st := store.New(path)
+	if err := st.Save(&store.AppConfig{SchemaVersion: 3, Servers: []api.Server{{
+		ID: "s1", Clients: []api.Client{{ID: "c1", ServerID: "tatus5"}},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := New(config.Settings{ConfigFile: path}, st, awg.New(awgtest.New()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client, ok := m.Client("s1", "c1")
+	if !ok || client.ServerID != "s1" {
+		t.Errorf("client after migration = %+v, %v", client, ok)
+	}
+	saved, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.SchemaVersion != store.SchemaVersion {
+		t.Errorf("saved schema version = %d, want %d", saved.SchemaVersion, store.SchemaVersion)
+	}
+}
+
+func TestNewLeavesACurrentConfigAlone(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "web_config.json")
+	st := store.New(path)
+	if err := st.Save(&store.AppConfig{SchemaVersion: store.SchemaVersion}); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := os.Stat(path)
+
+	if _, err := New(config.Settings{ConfigFile: path}, st, awg.New(awgtest.New())); err != nil {
+		t.Fatal(err)
+	}
+
+	after, _ := os.Stat(path)
+	if !after.ModTime().Equal(before.ModTime()) || after.Size() != before.Size() {
+		t.Error("a config that needs nothing was rewritten")
+	}
+}
+
+func TestNewRejectsMalformedMetadataWithoutOverwritingIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "web_config.json")
+	want := []byte(`{"servers":[`)
+	if err := os.WriteFile(path, want, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := New(config.Settings{ConfigFile: path}, store.New(path), awg.New(awgtest.New())); err == nil {
+		t.Fatal("New accepted malformed metadata")
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("malformed metadata was overwritten: got %q, want %q", got, want)
+	}
+}
+
+func failFutureSaves(t *testing.T, m *Manager) {
+	t.Helper()
+	m.store = store.New(filepath.Join(t.TempDir(), "missing", "web_config.json"))
+}

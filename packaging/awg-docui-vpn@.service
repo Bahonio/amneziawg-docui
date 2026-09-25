@@ -1,0 +1,15 @@
+[Unit]
+Description=AmneziaWG kernel interface %i managed by AWG DocUI
+Documentation=man:awg-quick(8)
+Wants=network-online.target
+After=network-online.target nss-lookup.target
+ConditionPathExists=/etc/amnezia/amneziawg/%i.conf
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/env awg-quick up /etc/amnezia/amneziawg/%i.conf
+ExecStop=/usr/bin/env awg-quick down /etc/amnezia/amneziawg/%i.conf
+
+[Install]
+WantedBy=multi-user.target

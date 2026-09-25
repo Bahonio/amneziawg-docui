@@ -1,0 +1,10 @@
+# Derived from mycelium-mesh/amneziawg-ui (Apache-2.0) and modified by Bahonio.
+# SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later
+
+# docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+services:
+  awg-docui:
+    build:
+      context: .
+      args:
+        VERSION: dev

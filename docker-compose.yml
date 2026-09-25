@@ -1,0 +1,40 @@
+# Derived from mycelium-mesh/amneziawg-ui (Apache-2.0) and modified by Bahonio.
+# SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later
+
+services:
+  awg-docui:
+    image: "${AWG_DOCUI_IMAGE:-ghcr.io/bahonio/awg-docui:latest}"
+    container_name: awg-docui
+    restart: unless-stopped
+    ports:
+      - "${WEB_UI_BIND_ADDRESS:-127.0.0.1}:${WEB_UI_PORT:-54845}:${WEB_UI_PORT:-54845}/tcp"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      HOST_AGENT_SOCKET: /run/awg-docui/agent.sock
+    volumes:
+      - type: bind
+        source: /run/awg-docui/agent.sock
+        target: /run/awg-docui/agent.sock
+        read_only: true
+      - type: volume
+        source: ui-data
+        target: /app/data
+    group_add:
+      - "${AWG_DOCUI_AGENT_GID:?run install-host-agent.sh and set AWG_DOCUI_AGENT_GID}"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    logging:
+      options:
+        max-size: 10m
+        max-file: 3
+
+volumes:
+  ui-data:
+    name: awg-docui-data
