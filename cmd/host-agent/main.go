@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
-	"github.com/Bahonio/awg-docui/internal/hostagent"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/hostagent"
 )
 
 func main() {

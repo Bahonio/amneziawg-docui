@@ -15,13 +15,13 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/awg"
-	"github.com/Bahonio/awg-docui/internal/awg/awgtest"
-	"github.com/Bahonio/awg-docui/internal/config"
-	"github.com/Bahonio/awg-docui/internal/manager"
-	"github.com/Bahonio/awg-docui/internal/store"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/awg"
+	"github.com/Bahonio/amneziawg-docui/internal/awg/awgtest"
+	"github.com/Bahonio/amneziawg-docui/internal/config"
+	"github.com/Bahonio/amneziawg-docui/internal/manager"
+	"github.com/Bahonio/amneziawg-docui/internal/store"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 // newTestAPI wires the real handlers onto a Fiber app backed by a manager

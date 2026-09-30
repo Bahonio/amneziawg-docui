@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/publicip"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/publicip"
 )
 
 // TestCreateServerRejectsAPortAnotherServerAlreadyUses covers the check that

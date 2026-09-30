@@ -14,7 +14,7 @@ grep -Fq 'Mozilla Public License Version 2.0' LICENSES/MPL-2.0.txt
 grep -Fq '005dfc1b120816c2d4a3f4f0292d2f7234d0413c' NOTICE
 grep -Fq 'Copyright 2018 The Manrope Project Authors' THIRD_PARTY_NOTICES.txt
 grep -Fq 'Container asset: Mozilla CA certificate bundle' THIRD_PARTY_NOTICES.txt
-grep -Fq 'https://github.com/Bahonio/awg-docui' web/static/app.js
+grep -Fq 'https://github.com/Bahonio/amneziawg-docui' web/static/app.js
 
 grep -Fq 'FROM scratch' Dockerfile
 if grep -Eq '^RUN apk add|ENTRYPOINT .*tini|HEALTHCHECK .*wget' Dockerfile; then

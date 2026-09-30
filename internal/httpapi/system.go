@@ -10,8 +10,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 // containerUptime is the open health check. PID 1's /proc entry was created

@@ -89,7 +89,7 @@ function topbar() {
 }
 
 function siteFooter() {
-  return `<footer class="site-footer"><a href="https://github.com/Bahonio/awg-docui" target="_blank" rel="noreferrer">Source &amp; licenses · AGPL-3.0-or-later</a></footer>`;
+  return `<footer class="site-footer"><a href="https://github.com/Bahonio/amneziawg-docui" target="_blank" rel="noreferrer">Source &amp; licenses · AGPL-3.0-or-later</a></footer>`;
 }
 
 function heading(server) {

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 // adoptExisting imports metadata from host-owned configs without writing the

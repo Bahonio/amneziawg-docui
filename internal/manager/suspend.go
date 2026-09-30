@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 // SuspendClient removes the client peer block from the active server config.

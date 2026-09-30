@@ -6,7 +6,7 @@ package store
 import (
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
 // The stamp is the part every migration shares: a config that predates the

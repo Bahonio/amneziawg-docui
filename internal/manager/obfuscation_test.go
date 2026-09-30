@@ -8,8 +8,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 // The shape of a generated parameter set is the shared generator's business

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
-	"github.com/Bahonio/awg-docui/internal/atomicfile"
-	"github.com/Bahonio/awg-docui/internal/awg"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/atomicfile"
+	"github.com/Bahonio/amneziawg-docui/internal/awg"
 )
 
 var ErrNotInstalled = errors.New("awgtest: command not stubbed")

@@ -6,8 +6,8 @@ package manager
 import (
 	"slices"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/store"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/store"
 )
 
 // cloneConfig detaches all nested state so a failed persistence attempt can

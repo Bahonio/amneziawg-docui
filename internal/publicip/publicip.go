@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/netutil"
+	"github.com/Bahonio/amneziawg-docui/internal/netutil"
 )
 
 // Unknown is what every generated config shows when nothing could tell us

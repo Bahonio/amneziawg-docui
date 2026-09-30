@@ -6,7 +6,7 @@ package manager
 import (
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
 // TrafficSnapshot collects the interface and peer counters of every server

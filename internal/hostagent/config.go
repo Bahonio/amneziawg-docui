@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
 )
 
 const maxConfigBytes = 1 << 20

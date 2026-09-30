@@ -15,7 +15,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
 )
 
 type call struct {
