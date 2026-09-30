@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-PROJECT_REPOSITORY=${AWG_DOCUI_REPOSITORY:-Bahonio/awg-docui}
+PROJECT_REPOSITORY=${AWG_DOCUI_REPOSITORY:-Bahonio/amneziawg-docui}
 INSTALL_DIR=${AWG_DOCUI_INSTALL_DIR:-/opt/awg-docui}
 OS_RELEASE_FILE=${AWG_DOCUI_OS_RELEASE_FILE:-/etc/os-release}
 

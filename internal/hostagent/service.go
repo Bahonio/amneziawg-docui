@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
-	"github.com/Bahonio/awg-docui/internal/atomicfile"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/atomicfile"
 )
 
 const defaultUnitPattern = "awg-docui-vpn@%s.service"

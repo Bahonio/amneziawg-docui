@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
 // The interface the fixture names does not exist, so "stopped" is the truth

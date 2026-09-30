@@ -1,6 +1,6 @@
 [Unit]
 Description=AWG DocUI host management agent
-Documentation=https://github.com/Bahonio/awg-docui
+Documentation=https://github.com/Bahonio/amneziawg-docui
 After=local-fs.target
 
 [Service]

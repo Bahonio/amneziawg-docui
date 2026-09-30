@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
 // SystemStatus is the backend's own health: what is installed, how many

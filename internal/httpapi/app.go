@@ -15,9 +15,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"github.com/Bahonio/awg-docui/internal/agentclient"
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/manager"
+	"github.com/Bahonio/amneziawg-docui/internal/agentclient"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/manager"
 )
 
 // SecurityHeaders locks the embedded application to its own origin. Inline

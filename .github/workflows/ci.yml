@@ -4,6 +4,9 @@ on:
   push:
     branches: [master, main]
   pull_request:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -52,7 +55,7 @@ jobs:
       - name: Verify minimal unprivileged image contents
         run: |
           test "$(docker image inspect awg-docui:ci --format '{{.Config.User}}')" = '65532:65532'
-          test "$(docker image inspect awg-docui:ci --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/Bahonio/awg-docui'
+          test "$(docker image inspect awg-docui:ci --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/Bahonio/amneziawg-docui'
           test "$(docker image inspect awg-docui:ci --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}')" = 'AGPL-3.0-or-later'
           container_id=$(docker create awg-docui:ci)
           trap 'docker rm -f "$container_id" >/dev/null' EXIT

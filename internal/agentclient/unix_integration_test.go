@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/agentclient"
-	"github.com/Bahonio/awg-docui/internal/hostagent"
+	"github.com/Bahonio/amneziawg-docui/internal/agentclient"
+	"github.com/Bahonio/amneziawg-docui/internal/hostagent"
 )
 
 type noopRunner struct{}

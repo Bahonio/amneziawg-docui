@@ -1,7 +1,7 @@
 // Derived from mycelium-mesh/amneziawg-ui (Apache-2.0) and modified by Bahonio.
 // SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later
 
-module github.com/Bahonio/awg-docui
+module github.com/Bahonio/amneziawg-docui
 
 go 1.26.4
 

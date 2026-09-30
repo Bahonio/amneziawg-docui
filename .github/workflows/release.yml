@@ -32,7 +32,7 @@ jobs:
           test -s NOTICE
           test -s THIRD_PARTY_NOTICES.txt
           grep -Fq '005dfc1b120816c2d4a3f4f0292d2f7234d0413c' NOTICE
-          grep -Fq 'https://github.com/Bahonio/awg-docui' web/static/app.js
+          grep -Fq 'https://github.com/Bahonio/amneziawg-docui' web/static/app.js
           sh scripts/check-licenses.sh
       - run: make test-installer-safety
       - run: make test-installer-sandbox

@@ -12,8 +12,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/atomicfile"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/atomicfile"
 )
 
 // AppConfig is the top-level config stored on disk.

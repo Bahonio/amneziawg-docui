@@ -11,7 +11,7 @@ func TestEmbeddedAppLinksCanonicalSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(app), "https://github.com/Bahonio/awg-docui") {
+	if !strings.Contains(string(app), "https://github.com/Bahonio/amneziawg-docui") {
 		t.Fatal("embedded Web UI does not link to the canonical source repository")
 	}
 }

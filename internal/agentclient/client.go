@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
 )
 
 var ErrUnavailable = errors.New("Host agent unavailable")

@@ -6,7 +6,7 @@ package wgconf
 import (
 	"strings"
 
-	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
 // AppendPeerText is the pure form used before sending an atomic update to the

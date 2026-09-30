@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/netutil"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/netutil"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 // protocolVersion is the "protocol_version" value the AmneziaVPN app uses

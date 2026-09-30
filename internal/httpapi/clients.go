@@ -10,9 +10,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 	qrcode "github.com/skip2/go-qrcode"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/manager"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/manager"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 const maxQRConfigBytes = 16 * 1024

@@ -4,8 +4,8 @@
 package manager
 
 import (
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/publicip"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/publicip"
 )
 
 // PublicIP returns the address every generated config points clients at.

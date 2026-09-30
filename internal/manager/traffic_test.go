@@ -6,7 +6,7 @@ package manager
 import (
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
 func TestTrafficSnapshotJoinsPeersWithClients(t *testing.T) {

@@ -11,11 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Bahonio/awg-docui/internal/amnezialink"
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/awg"
-	"github.com/Bahonio/awg-docui/internal/netutil"
-	"github.com/Bahonio/awg-docui/internal/wgconf"
+	"github.com/Bahonio/amneziawg-docui/internal/amnezialink"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/awg"
+	"github.com/Bahonio/amneziawg-docui/internal/netutil"
+	"github.com/Bahonio/amneziawg-docui/internal/wgconf"
 )
 
 // Clients returns detached copies of every client, optionally narrowed to

@@ -8,8 +8,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/manager"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/manager"
 )
 
 func (h *Handlers) getServers(c fiber.Ctx) error {

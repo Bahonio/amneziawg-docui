@@ -17,13 +17,13 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/pprof"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
-	"github.com/Bahonio/awg-docui/internal/awg"
-	"github.com/Bahonio/awg-docui/internal/config"
-	"github.com/Bahonio/awg-docui/internal/frontend"
-	"github.com/Bahonio/awg-docui/internal/httpapi"
-	"github.com/Bahonio/awg-docui/internal/manager"
-	"github.com/Bahonio/awg-docui/internal/store"
-	"github.com/Bahonio/awg-docui/web"
+	"github.com/Bahonio/amneziawg-docui/internal/awg"
+	"github.com/Bahonio/amneziawg-docui/internal/config"
+	"github.com/Bahonio/amneziawg-docui/internal/frontend"
+	"github.com/Bahonio/amneziawg-docui/internal/httpapi"
+	"github.com/Bahonio/amneziawg-docui/internal/manager"
+	"github.com/Bahonio/amneziawg-docui/internal/store"
+	"github.com/Bahonio/amneziawg-docui/web"
 )
 
 var (

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bahonio/awg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
 // The suspender suspends exactly the active clients whose time has passed.

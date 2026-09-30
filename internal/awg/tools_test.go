@@ -7,8 +7,8 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/awg"
-	"github.com/Bahonio/awg-docui/internal/awg/awgtest"
+	"github.com/Bahonio/amneziawg-docui/internal/awg"
+	"github.com/Bahonio/amneziawg-docui/internal/awg/awgtest"
 )
 
 const showOutput = `interface: wg-abc123

@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Bahonio/awg-docui/internal/agentapi"
-	"github.com/Bahonio/awg-docui/internal/agentclient"
+	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
+	"github.com/Bahonio/amneziawg-docui/internal/agentclient"
 )
 
 type PeerStats struct{ Received, Sent, LastHandshake, Endpoint string }

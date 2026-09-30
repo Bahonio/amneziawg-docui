@@ -3,7 +3,7 @@
 
 package wgconf
 
-import "github.com/Bahonio/awg-docui/internal/api"
+import "github.com/Bahonio/amneziawg-docui/internal/api"
 
 // The I1-I5 signature packets a new client starts from. I1 is a captured
 // handshake that makes the tunnel's first packet look like something else on

@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Bahonio/awg-docui/internal/awg"
-	"github.com/Bahonio/awg-docui/internal/config"
-	"github.com/Bahonio/awg-docui/internal/publicip"
-	"github.com/Bahonio/awg-docui/internal/store"
+	"github.com/Bahonio/amneziawg-docui/internal/awg"
+	"github.com/Bahonio/amneziawg-docui/internal/config"
+	"github.com/Bahonio/amneziawg-docui/internal/publicip"
+	"github.com/Bahonio/amneziawg-docui/internal/store"
 )
 
 // Manager orchestrates all AmneziaWG operations.

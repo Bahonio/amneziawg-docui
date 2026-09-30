@@ -1,4 +1,4 @@
-# AWG DocUI
+# AWG DocUI — Web UI для AmneziaWG
 
 Web-панель для **AmneziaWG, работающего через kernel module Linux host**.
 
@@ -20,7 +20,7 @@ Amnezia:
 
 ```sh
 curl -fsSL -o /tmp/awg-docui-install.sh \
-  https://github.com/Bahonio/awg-docui/releases/latest/download/awg-docui-install.sh \
+  https://github.com/Bahonio/amneziawg-docui/releases/latest/download/awg-docui-install.sh \
   && sudo sh /tmp/awg-docui-install.sh
 ```
 
@@ -57,7 +57,7 @@ Installer показывает семь пронумерованных этап�
 
 ```sh
 curl -fsSL -o /tmp/awg-docui-install.sh \
-  https://github.com/Bahonio/awg-docui/releases/latest/download/awg-docui-install.sh \
+  https://github.com/Bahonio/amneziawg-docui/releases/latest/download/awg-docui-install.sh \
   && sudo sh /tmp/awg-docui-install.sh --adopt
 ```
 
@@ -171,10 +171,26 @@ sudo /opt/awg-docui/install.sh --update --version v0.2.0
 
 В этом случае Compose получает image `0.2.0` вместо `latest`.
 
+### Как поддерживать проект актуальным
+
+Каждый понедельник Dependabot проверяет Go-модули, базовый Docker-образ,
+GitHub Actions и Playwright. При появлении новых версий он создаёт pull request.
+CI проверяет каждый PR и дополнительно запускается раз в неделю. Перед слиянием
+проверьте изменения и результаты CI. Само слияние не публикует новый релиз.
+
+После проверки изменений создайте и отправьте из `main` новый тег `vX.Y.Z`.
+Release workflow соберёт agent и образ, проверит installer и опубликует файлы.
+Перед объявлением обновления проверьте релиз и образ. Имя образа остаётся
+`ghcr.io/bahonio/awg-docui`, чтобы существующие установки продолжали получать
+обновления после переименования репозитория.
+
+Официальный kernel package AmneziaWG приходит из PPA Amnezia и не входит в
+зависимости этой панели. Обновления пакета проверяйте отдельно на тестовом
+сервере перед обновлением рабочего VPN.
+
 ## Ручная установка из checkout
 
-Для закрытой разработки до публичного релиза можно поставить только наш
-host-agent из исходников:
+Чтобы установить host-agent из исходников, выполните:
 
 ```sh
 sudo ./install-host-agent.sh --check
@@ -274,7 +290,7 @@ AWG DocUI распространяется как единая работа по
 [уведомлениях о сторонних компонентах](THIRD_PARTY_NOTICES.txt). Финальный
 контейнер — минимальный scratch image; его Mozilla CA bundle покрыт
 [MPL-2.0](LICENSES/MPL-2.0.txt). Канонический
-исходный код: [`Bahonio/awg-docui`](https://github.com/Bahonio/awg-docui).
+исходный код: [`Bahonio/amneziawg-docui`](https://github.com/Bahonio/amneziawg-docui).
 
 AWG DocUI — независимый community project, не связанный с Amnezia и не
 одобренный ею. AmneziaWG принадлежит соответствующему проекту и авторам.

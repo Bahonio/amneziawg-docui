@@ -1,7 +1,7 @@
 <!-- Derived from mycelium-mesh/amneziawg-ui (Apache-2.0) and modified by Bahonio. -->
 <!-- SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later -->
 
-# AWG DocUI
+# AWG DocUI — AmneziaWG Web UI
 
 A Web control panel for **AmneziaWG running in the Linux host kernel**.
 
@@ -22,7 +22,7 @@ Automated installation supports 64-bit Ubuntu 22.04 and 24.04 on `amd64` and
 
 ```sh
 curl -fsSL -o /tmp/awg-docui-install.sh \
-  https://github.com/Bahonio/awg-docui/releases/latest/download/awg-docui-install.sh \
+  https://github.com/Bahonio/amneziawg-docui/releases/latest/download/awg-docui-install.sh \
   && sudo sh /tmp/awg-docui-install.sh
 ```
 
@@ -59,7 +59,7 @@ Use the explicit preservation mode:
 
 ```sh
 curl -fsSL -o /tmp/awg-docui-install.sh \
-  https://github.com/Bahonio/awg-docui/releases/latest/download/awg-docui-install.sh \
+  https://github.com/Bahonio/amneziawg-docui/releases/latest/download/awg-docui-install.sh \
   && sudo sh /tmp/awg-docui-install.sh --adopt
 ```
 
@@ -173,10 +173,26 @@ sudo /opt/awg-docui/install.sh --update --version v0.2.0
 
 This selects image `0.2.0` instead of `latest`.
 
+### Maintaining releases
+
+Dependabot checks Go modules, the Docker base image, GitHub Actions, and the
+Playwright package every Monday. It opens pull requests for available updates;
+CI runs on each pull request and once a week. Review the changes and passing
+checks before merging. Dependency updates do not publish a new version.
+
+After merging a tested change, create and push the next `vX.Y.Z` tag from
+`main`. The release workflow builds the agent and image, verifies the installer,
+and publishes the assets. Check the release and image before announcing the
+update. The image remains `ghcr.io/bahonio/awg-docui` so existing installations
+continue to receive updates after the repository rename.
+
+The official AmneziaWG kernel package is maintained by Amnezia through its PPA;
+it is not a dependency bundled into this project. Review PPA package updates
+separately and test them on a disposable host before upgrading a VPN server.
+
 ## Manual installation from a checkout
 
-For private development before public releases are enabled, install only the
-host agent from source:
+To install the host agent from source, run:
 
 ```sh
 sudo ./install-host-agent.sh --check
@@ -278,7 +294,7 @@ which is licensed under Apache-2.0. See [NOTICE](NOTICE),
 [third-party notices](THIRD_PARTY_NOTICES.txt). The final container is a
 minimal scratch image; its Mozilla CA bundle is covered by
 [MPL-2.0](LICENSES/MPL-2.0.txt). The canonical source is
-[`Bahonio/awg-docui`](https://github.com/Bahonio/awg-docui).
+[`Bahonio/amneziawg-docui`](https://github.com/Bahonio/amneziawg-docui).
 
 AWG DocUI is an independent community project. It is not affiliated with or
 endorsed by Amnezia. AmneziaWG belongs to its respective project and authors.

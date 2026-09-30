@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Bahonio/awg-docui/internal/api"
-	"github.com/Bahonio/awg-docui/internal/awg"
-	"github.com/Bahonio/awg-docui/internal/awg/awgtest"
-	"github.com/Bahonio/awg-docui/internal/config"
-	"github.com/Bahonio/awg-docui/internal/store"
+	"github.com/Bahonio/amneziawg-docui/internal/api"
+	"github.com/Bahonio/amneziawg-docui/internal/awg"
+	"github.com/Bahonio/amneziawg-docui/internal/awg/awgtest"
+	"github.com/Bahonio/amneziawg-docui/internal/config"
+	"github.com/Bahonio/amneziawg-docui/internal/store"
 )
 
 // newTestManager builds a manager whose single server has a real .conf on
