@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0 AND AGPL-3.0-or-later
 
 # AWG DocUI is management-only: the image contains no VPN runtime or host tools.
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
