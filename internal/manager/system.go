@@ -11,6 +11,11 @@ import (
 	"github.com/Bahonio/amneziawg-docui/internal/api"
 )
 
+// AgentAvailable checks the connection used by the running panel.
+func (m *Manager) AgentAvailable() bool {
+	return m.tools.BackendStatus().HostAgent
+}
+
 // SystemStatus is the backend's own health: what is installed, how many
 // servers and clients there are, and the defaults it started with.
 func (m *Manager) SystemStatus() api.SystemStatus {

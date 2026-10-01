@@ -119,6 +119,10 @@ case "$1" in
         case "$1" in
             version|up) exit 0 ;;
             ps) echo awg-docui; exit 0 ;;
+            exec)
+                [ "$*" = 'exec -T awg-docui /usr/local/bin/awg-docui healthcheck' ] || exit 1
+                [ "${AWG_DOCUI_BOOTSTRAP_SCENARIO:-}" != unhealthy ]
+                exit $? ;;
         esac
         ;;
 esac
@@ -164,6 +168,10 @@ case "$1" in
         case "$1" in
             version|up) exit 0 ;;
             ps) echo awg-docui; exit 0 ;;
+            exec)
+                [ "$*" = 'exec -T awg-docui /usr/local/bin/awg-docui healthcheck' ] || exit 1
+                [ "${AWG_DOCUI_BOOTSTRAP_SCENARIO:-}" != unhealthy ]
+                exit $? ;;
         esac
         ;;
 esac
@@ -173,6 +181,14 @@ EOF
         ;;
 esac
 SH
+
+cat > /fixture/bin/systemd-tmpfiles <<'SH'
+#!/bin/sh
+[ "$*" = '--create /etc/tmpfiles.d/awg-docui.conf' ] || exit 1
+grep -Fxq 'd /run/awg-docui 0750 root awg-docui -' /etc/tmpfiles.d/awg-docui.conf || exit 1
+mkdir -p /run/awg-docui
+SH
+chmod 0755 /fixture/bin/systemd-tmpfiles
 
 cat > /fixture/bin/systemctl <<'SH'
 #!/bin/sh
@@ -316,7 +332,7 @@ EOF
         cp /source/LICENSES/Apache-2.0.txt /fixture/release/bundle/LICENSES/
         cp /source/LICENSES/MPL-2.0.txt /fixture/release/bundle/LICENSES/
         cp /source/packaging/awg-docui-agent.service \
-            /source/packaging/awg-docui-vpn@.service /fixture/release/bundle/packaging/
+            /source/packaging/awg-docui-vpn@.service /source/packaging/awg-docui-tmpfiles.conf /fixture/release/bundle/packaging/
         cp /source/scripts/check-agent-unit.sh /fixture/release/bundle/scripts/
         printf 'v0.3.0\n' > /fixture/release/bundle/VERSION
         tar -C /fixture/release/bundle -czf /fixture/release/awg-docui-install-bundle.tar.gz .
@@ -330,6 +346,22 @@ EOF
         assert_no_host_package_changes
         assert_install_log
         echo 'PASS: standalone installer verifies and executes the published support bundle'
+        ;;
+    unhealthy)
+        prepare_existing_host
+        cat > /fixture/bin/sleep <<'SH'
+#!/bin/sh
+exit 0
+SH
+        chmod 0755 /fixture/bin/sleep
+        if sh /source/install.sh --adopt --agent-binary /fixture/agent > /fixture/output 2>&1; then
+            echo 'FAIL: installer accepted a running panel unable to reach the agent' >&2
+            exit 1
+        fi
+        grep -Fq 'could not reach the host agent from inside the container' /fixture/output
+        grep -Fq 'compose exec -T awg-docui /usr/local/bin/awg-docui healthcheck' /fixture/docker.log
+        assert_no_host_package_changes
+        echo 'PASS: installer rejects a running container with failed agent connectivity'
         ;;
     symlink)
         prepare_existing_host

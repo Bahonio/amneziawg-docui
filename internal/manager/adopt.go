@@ -17,44 +17,45 @@ import (
 // configs or changing a running interface. Known clients keep their private
 // material; externally added peers are represented read-only until the
 // operator replaces them with a UI-created client.
-func (m *Manager) adoptExisting() error {
+func (m *Manager) adoptExisting() error { return m.refreshHost(false) }
+
+func (m *Manager) refreshHost(reuse bool) error {
 	m.hostMu.Lock()
 	defer m.hostMu.Unlock()
 
-	interfaces, err := m.tools.Interfaces()
-	if err != nil || len(interfaces) == 0 {
+	if reuse && time.Since(m.lastAdoption) < statusTTL {
 		return nil
 	}
-	type candidate struct {
-		info    agentapi.Interface
-		content string
-	}
-	candidates := make([]candidate, 0, len(interfaces))
-	for _, iface := range interfaces {
-		content, err := m.tools.ReadConfig(iface.Name, iface.ConfigPath)
-		if err == nil && content != "" {
-			candidates = append(candidates, candidate{info: iface, content: content})
-		}
-	}
-	if len(candidates) == 0 {
+	candidates, err := m.tools.Snapshot()
+	if err != nil {
 		return nil
 	}
-
+	// Reuse successful reads across concurrent dashboard requests. Failed
+	// reads are retried so recovery never waits for the cache to expire.
+	m.lastAdoption = time.Now()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	original := cloneConfig(m.cfg)
 	changed := false
 	for _, item := range candidates {
-		srv := m.serverByInterface(item.info.Name)
+		status := "stopped"
+		if item.Running {
+			status = "running"
+		}
+		m.noteServerStatus(item.Name, status)
+		if item.Config == "" {
+			continue
+		}
+		srv := m.serverByInterface(item.Name)
 		if srv == nil {
-			adopted := adoptedServer(item.info, item.content, m.settings.DNSServers)
+			adopted := adoptedServer(item.Interface, item.Config, m.settings.DNSServers)
 			m.cfg.Servers = append(m.cfg.Servers, adopted)
 			changed = true
 		} else {
-			if refreshServerFromHost(srv, item.info, item.content) {
+			if refreshServerFromHost(srv, item.Interface, item.Config) {
 				changed = true
 			}
-			if mergeHostPeers(srv, item.content) {
+			if mergeHostPeers(srv, item.Config) {
 				changed = true
 			}
 		}
@@ -62,6 +63,7 @@ func (m *Manager) adoptExisting() error {
 	if changed {
 		if err := m.saveLocked("existing host interface adoption"); err != nil {
 			m.cfg = original
+			m.lastAdoption = time.Time{}
 			return err
 		}
 	}

@@ -14,6 +14,7 @@ echo "Removing AWG DocUI management components only. Running VPN interfaces will
 sh "$SCRIPT_DIR/scripts/check-agent-unit.sh"
 systemctl disable --now awg-docui-agent.service 2>/dev/null || true
 rm -f /etc/systemd/system/awg-docui-agent.service
+rm -f /etc/tmpfiles.d/awg-docui.conf
 rm -f /usr/local/sbin/awg-docui-agent
 rm -f /run/awg-docui/agent.sock
 rm -f /etc/awg-docui/agent.env

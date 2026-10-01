@@ -13,6 +13,7 @@ Restart=on-failure
 RestartSec=2s
 RuntimeDirectory=awg-docui
 RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
 UMask=0007
 NoNewPrivileges=yes
 PrivateTmp=yes

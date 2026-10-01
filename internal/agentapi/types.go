@@ -74,21 +74,6 @@ type PresharedKey struct {
 	Key string `json:"key"`
 }
 
-type Peer struct {
-	PublicKey    string `json:"public_key"`
-	PresharedKey string `json:"preshared_key,omitempty"`
-	AllowedIPs   string `json:"allowed_ips"`
-}
-
-type UpdatePeerRequest struct {
-	OriginalPublicKey string `json:"original_public_key"`
-	Peer
-}
-
-type DeletePeerRequest struct {
-	PublicKey string `json:"public_key"`
-}
-
 type PeerStats struct {
 	Received      string `json:"received"`
 	Sent          string `json:"sent"`

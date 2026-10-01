@@ -225,6 +225,7 @@ for support_path in \
     LICENSES/Apache-2.0.txt \
     LICENSES/MPL-2.0.txt \
     packaging/awg-docui-agent.service \
+    packaging/awg-docui-tmpfiles.conf \
     packaging/awg-docui-vpn@.service \
     scripts/check-agent-unit.sh; do
     [ -f "$SCRIPT_DIR/$support_path" ] || support_complete=no
@@ -498,6 +499,7 @@ install -m 0755 "$SCRIPT_DIR/install-host-agent.sh" "$INSTALL_DIR/install-host-a
 install -m 0755 "$SCRIPT_DIR/uninstall-host-agent.sh" "$INSTALL_DIR/uninstall-host-agent.sh"
 install -m 0755 "$SCRIPT_DIR/scripts/check-agent-unit.sh" "$INSTALL_DIR/scripts/check-agent-unit.sh"
 install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-agent.service" "$INSTALL_DIR/packaging/awg-docui-agent.service"
+install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-tmpfiles.conf" "$INSTALL_DIR/packaging/awg-docui-tmpfiles.conf"
 install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-vpn@.service" "$INSTALL_DIR/packaging/awg-docui-vpn@.service"
 install -m 0644 "$SCRIPT_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 install -m 0600 "$SCRIPT_DIR/.env.example" "$INSTALL_DIR/.env.example"
@@ -550,24 +552,17 @@ stage 6 'Starting the Web UI container'
 
 stage 7 'Running management health checks'
 
-agent_health=no
-if curl --fail --silent --show-error --unix-socket /run/awg-docui/agent.sock \
-    http://localhost/v1/health >/dev/null; then
-    agent_health=yes
-fi
 panel_health=no
 health_attempt=0
 while [ "$health_attempt" -lt 30 ]; do
-    if (cd "$INSTALL_DIR" && docker compose ps --status running --services) \
-        | grep -Fxq awg-docui; then
+    if (cd "$INSTALL_DIR" && docker compose exec -T awg-docui /usr/local/bin/awg-docui healthcheck); then
         panel_health=yes
         break
     fi
     health_attempt=$((health_attempt + 1))
     sleep 1
 done
-[ "$agent_health" = yes ] || { echo "Host agent health check failed." >&2; exit 1; }
-[ "$panel_health" = yes ] || { echo "AWG DocUI container did not reach running state." >&2; exit 1; }
+[ "$panel_health" = yes ] || { echo "AWG DocUI could not reach the host agent from inside the container." >&2; exit 1; }
 
 echo
 echo "AWG DocUI is installed in $INSTALL_DIR"

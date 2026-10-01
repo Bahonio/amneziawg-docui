@@ -30,7 +30,7 @@ var endpointLabelRE = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9
 // the write lock across a shell command per server would stall every other
 // request for as long as a host-agent call takes.
 func (m *Manager) Servers() []api.Server {
-	if err := m.adoptExisting(); err != nil {
+	if err := m.refreshHost(true); err != nil {
 		fmt.Printf("Failed to adopt host interfaces: %v\n", err)
 	}
 	servers := m.copyServers()

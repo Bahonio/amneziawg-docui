@@ -12,6 +12,14 @@ mkdir -p /fixture/bin /run/systemd/system /etc/amnezia/amneziawg \
     /etc/awg-docui /etc/amneziawg-ui /etc/systemd/system /usr/local/sbin
 export PATH="/fixture/bin:$PATH"
 
+cat > /fixture/bin/systemd-tmpfiles <<'SH'
+#!/bin/sh
+[ "$*" = '--create /etc/tmpfiles.d/awg-docui.conf' ] || exit 1
+grep -Fxq 'd /run/awg-docui 0750 root awg-docui -' /etc/tmpfiles.d/awg-docui.conf || exit 1
+mkdir -p /run/awg-docui
+SH
+chmod 0755 /fixture/bin/systemd-tmpfiles
+
 cat > /fixture/bin/systemctl <<'SH'
 #!/bin/sh
 set -eu

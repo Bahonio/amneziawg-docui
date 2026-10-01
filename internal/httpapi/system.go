@@ -17,6 +17,9 @@ import (
 // containerUptime is the open health check. PID 1's /proc entry was created
 // when the container started, so its modification time is the boot time.
 func (h *Handlers) containerUptime(c fiber.Ctx) error {
+	if !h.mgr.AgentAvailable() {
+		return c.Status(fiber.StatusServiceUnavailable).SendString("Host agent unavailable")
+	}
 	info, err := os.Stat("/proc/1/cmdline")
 	if err != nil {
 		return c.SendString("Container Uptime: unknown")

@@ -42,11 +42,30 @@ func TestClientTalksToAgentOverUnixSocket(t *testing.T) {
 	go server.Serve(listener)
 	t.Cleanup(func() { server.Close(); listener.Close() })
 
-	status, err := agentclient.New(socket).Health()
+	client := agentclient.New(socket)
+	status, err := client.Health()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !status.HostAgent || !status.KernelModuleLoaded || !status.AWGAvailable || status.Runtime != "Kernel" {
 		t.Fatalf("status = %+v", status)
+	}
+	// The same client must reconnect when the agent unlinks and recreates
+	// its socket. A directory mount exposes the replacement inode.
+	if err := server.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Health(); err == nil {
+		t.Fatal("stopped agent is healthy")
+	}
+	replacement, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := &http.Server{Handler: hostagent.Handler{Service: service}}
+	go restarted.Serve(replacement)
+	t.Cleanup(func() { restarted.Close() })
+	if status, err := client.Health(); err != nil || !status.HostAgent {
+		t.Fatalf("client did not recover after socket replacement: %+v %v", status, err)
 	}
 }

@@ -84,6 +84,8 @@ func (r *Runner) Health() (agentapi.BackendStatus, error) {
 		AWGAvailable: true, AWGQuickAvailable: true, Runtime: agentapi.Runtime}, nil
 }
 
+func (r *Runner) Snapshot() ([]agentapi.InterfaceDetail, error) { return nil, nil }
+
 func (r *Runner) Interfaces() ([]agentapi.Interface, error) { return nil, nil }
 
 func (r *Runner) InterfaceStatus(name string) (bool, error) {

@@ -8,5 +8,5 @@ docker run --rm --network none --cap-drop ALL \
     --security-opt no-new-privileges:true \
     --mount "type=bind,src=$SCRIPT_DIR,target=/source,readonly" \
     --env AWG_DOCUI_INSTALLER_SANDBOX=yes \
-    golang:1.26-bookworm \
+    golang:1.26.4-bookworm \
     sh /source/scripts/testdata/installer-sandbox.sh

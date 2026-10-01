@@ -2,7 +2,7 @@
 set -eu
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 
-for scenario in fresh adopt update bundle symlink log-symlink; do
+for scenario in fresh adopt update bundle unhealthy symlink log-symlink; do
     docker run --rm --platform linux/amd64 --network none --cap-drop ALL \
         --security-opt no-new-privileges:true \
         --mount "type=bind,src=$SCRIPT_DIR,target=/source,readonly" \

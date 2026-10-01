@@ -233,35 +233,6 @@ func TestCreateRejectsPortAlreadyUsedByHostConfig(t *testing.T) {
 	}
 }
 
-func TestPeerCRUDUsesLiveSyncWithoutRestart(t *testing.T) {
-	s, runner := testService(t)
-	if err := s.Create(context.Background(), agentapi.CreateInterfaceRequest{Name: "wg0", Config: serverConfig(), Subnet: "10.0.0.0/24"}); err != nil {
-		t.Fatal(err)
-	}
-	runner.running["wg0"] = true
-	peer := agentapi.Peer{PublicKey: testKey(4), PresharedKey: testKey(5), AllowedIPs: "10.0.0.2/32"}
-	if err := s.AddPeer(context.Background(), "wg0", peer); err != nil {
-		t.Fatal(err)
-	}
-	updated := agentapi.UpdatePeerRequest{OriginalPublicKey: peer.PublicKey, Peer: agentapi.Peer{PublicKey: testKey(6), AllowedIPs: "10.0.0.3/32"}}
-	if err := s.UpdatePeer(context.Background(), "wg0", updated); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.DeletePeer(context.Background(), "wg0", updated.PublicKey); err != nil {
-		t.Fatal(err)
-	}
-	content, _ := os.ReadFile(filepath.Join(s.ConfigDir, "wg0.conf"))
-	if strings.Contains(string(content), testKey(4)) || strings.Contains(string(content), testKey(6)) {
-		t.Fatal("deleted peer remains in config")
-	}
-	if runner.callCount("awg", "syncconf") != 3 {
-		t.Fatalf("syncconf calls = %d", runner.callCount("awg", "syncconf"))
-	}
-	if runner.called("systemctl", "restart") || runner.called("systemctl", "stop") {
-		t.Fatal("peer CRUD changed interface lifecycle")
-	}
-}
-
 func TestDeleteUsesExistingVendorUnitForAdoptedInterface(t *testing.T) {
 	s, runner := testService(t)
 	if err := s.Create(context.Background(), agentapi.CreateInterfaceRequest{Name: "wg0", Config: serverConfig(), Subnet: "10.0.0.0/24"}); err != nil {
@@ -384,12 +355,16 @@ func TestHostAgentAPIHappyPathUsesTypedOperations(t *testing.T) {
 	}
 
 	runner.running["wg0"] = true
-	peer := agentapi.Peer{PublicKey: testKey(8), PresharedKey: testKey(9), AllowedIPs: "10.0.0.8/32"}
-	if res := request(http.MethodPost, "/v1/interfaces/wg0/peers", peer); res.Code != http.StatusOK {
-		t.Fatalf("add peer: %d %s", res.Code, res.Body.String())
+	content, err := os.ReadFile(filepath.Join(s.ConfigDir, "wg0.conf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	update := agentapi.ApplyConfigRequest{Config: string(content) + "\n[Peer]\nPublicKey = " + testKey(8) + "\nAllowedIPs = 10.0.0.8/32\n", ApplyLive: true}
+	if res := request(http.MethodPut, "/v1/interfaces/wg0/config", update); res.Code != http.StatusOK {
+		t.Fatalf("apply config: %d %s", res.Code, res.Body.String())
 	}
 	if !runner.called("awg", "syncconf", "wg0", "/dev/stdin") {
-		t.Fatal("peer API did not live-sync the running interface")
+		t.Fatal("config API did not live-sync the running interface")
 	}
 	if res := request(http.MethodDelete, "/v1/interfaces/wg0", nil); res.Code != http.StatusOK {
 		t.Fatalf("delete: %d %s", res.Code, res.Body.String())

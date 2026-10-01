@@ -11,6 +11,7 @@ package manager
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Bahonio/amneziawg-docui/internal/awg"
 	"github.com/Bahonio/amneziawg-docui/internal/config"
@@ -39,7 +40,8 @@ type Manager struct {
 	// their matching metadata save. Without it, an adoption poll could read a
 	// config, a client mutation could commit, and the stale adoption snapshot
 	// could then mark that just-added client absent.
-	hostMu sync.Mutex
+	hostMu       sync.Mutex
+	lastAdoption time.Time // guarded by hostMu
 
 	// statuses caches observed interface states, keyed by interface name;
 	// see serverStatus. Guarded by statusMu, not mu, so a status lookup

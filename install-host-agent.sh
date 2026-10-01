@@ -7,6 +7,7 @@ AGENT_DIR=/etc/awg-docui
 AGENT_BIN=/usr/local/sbin/awg-docui-agent
 AGENT_UNIT=/etc/systemd/system/awg-docui-agent.service
 FALLBACK_UNIT=/etc/systemd/system/awg-docui-vpn@.service
+TMPFILES_CONF=/etc/tmpfiles.d/awg-docui.conf
 SOCKET_GROUP=awg-docui
 LEGACY_AGENT_DIR=/etc/amneziawg-ui
 
@@ -97,7 +98,7 @@ echo "awg-quick: $quick_ok"
 echo "IPv4 forwarding: $ipv4_forwarding"
 
 # Never follow a management destination symlink into an existing VPN file.
-for destination in "$AGENT_DIR" "$AGENT_BIN" "$AGENT_UNIT" "$AGENT_DIR/agent.env"; do
+for destination in "$AGENT_DIR" "$AGENT_BIN" "$AGENT_UNIT" "$AGENT_DIR/agent.env" "$TMPFILES_CONF" /run/awg-docui; do
     if [ -L "$destination" ]; then
         echo "Refusing to replace symlink management destination: $destination" >&2
         exit 1
@@ -137,6 +138,9 @@ fi
 install -d -m 0755 "$AGENT_DIR"
 install -m 0755 "$build_tmp" "$AGENT_BIN"
 install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-agent.service" "$AGENT_UNIT"
+install -d -m 0755 /etc/tmpfiles.d
+install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-tmpfiles.conf" "$TMPFILES_CONF"
+systemd-tmpfiles --create "$TMPFILES_CONF"
 
 vpn_unit='awg-docui-vpn@%s.service'
 previous_vpn_unit=""

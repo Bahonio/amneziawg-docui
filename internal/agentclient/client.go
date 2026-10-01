@@ -98,6 +98,24 @@ func (c *Client) Interfaces() ([]agentapi.Interface, error) {
 	return out, err
 }
 
+func (c *Client) Snapshot() ([]agentapi.InterfaceDetail, error) {
+	var out []agentapi.InterfaceDetail
+	err := c.do(http.MethodGet, "/snapshot", nil, &out)
+	return out, err
+}
+
+func (c *Client) ReadConfig(name string) (string, error) {
+	var out agentapi.InterfaceDetail
+	err := c.do(http.MethodGet, ifacePath(name)+"/config", nil, &out)
+	return out.Config, err
+}
+
+func (c *Client) InterfaceStatus(name string) (bool, error) {
+	var out agentapi.Interface
+	err := c.do(http.MethodGet, ifacePath(name)+"/state", nil, &out)
+	return out.Running, err
+}
+
 func (c *Client) Interface(name string) (agentapi.InterfaceDetail, error) {
 	var out agentapi.InterfaceDetail
 	err := c.do(http.MethodGet, ifacePath(name), nil, &out)
@@ -124,18 +142,6 @@ func (c *Client) Stats(name string) (agentapi.InterfaceStats, error) {
 	var out agentapi.InterfaceStats
 	err := c.do(http.MethodGet, ifacePath(name)+"/stats", nil, &out)
 	return out, err
-}
-
-func (c *Client) AddPeer(name string, peer agentapi.Peer) error {
-	return c.do(http.MethodPost, ifacePath(name)+"/peers", peer, nil)
-}
-
-func (c *Client) UpdatePeer(name string, peer agentapi.UpdatePeerRequest) error {
-	return c.do(http.MethodPut, ifacePath(name)+"/peers", peer, nil)
-}
-
-func (c *Client) DeletePeer(name, publicKey string) error {
-	return c.do(http.MethodDelete, ifacePath(name)+"/peers", agentapi.DeletePeerRequest{PublicKey: publicKey}, nil)
 }
 
 func (c *Client) Keys() (agentapi.KeyPair, error) {

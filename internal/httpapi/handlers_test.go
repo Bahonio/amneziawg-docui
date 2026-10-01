@@ -451,6 +451,10 @@ func TestAgentUnavailableIsAReadable503(t *testing.T) {
 	app := fiber.New(FiberConfig())
 	New(mgr).RegisterRoutes(app)
 
+	if status, body := call(t, app, http.MethodGet, "/status", ""); status != http.StatusServiceUnavailable {
+		t.Fatalf("healthcheck without agent = %d %s", status, body)
+	}
+
 	status, body := call(t, app, http.MethodPost, "/api/servers", `{"name":"server"}`)
 	if status != http.StatusServiceUnavailable || !strings.Contains(string(body), "Host agent unavailable") {
 		t.Fatalf("status = %d, body = %s", status, body)

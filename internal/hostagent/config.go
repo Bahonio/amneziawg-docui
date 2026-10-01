@@ -8,9 +8,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
 )
+
+type configPeer struct {
+	PublicKey, PresharedKey, AllowedIPs string
+}
 
 const maxConfigBytes = 1 << 20
 
@@ -105,7 +107,7 @@ func validateKnownConfig(content string) error {
 
 func validateConfigPeers(content string) error {
 	section := ""
-	peer := agentapi.Peer{}
+	peer := configPeer{}
 	peerSeen := false
 	flush := func() error {
 		if !peerSeen {
@@ -114,7 +116,7 @@ func validateConfigPeers(content string) error {
 		if err := validatePeer(peer); err != nil {
 			return fmt.Errorf("invalid peer: %w", err)
 		}
-		peer, peerSeen = agentapi.Peer{}, false
+		peer, peerSeen = configPeer{}, false
 		return nil
 	}
 	for _, raw := range strings.Split(content, "\n") {
@@ -192,7 +194,7 @@ func validateKey(name, key string, optional bool) error {
 	return nil
 }
 
-func validatePeer(peer agentapi.Peer) error {
+func validatePeer(peer configPeer) error {
 	if err := validateKey("public key", peer.PublicKey, false); err != nil {
 		return err
 	}
@@ -232,56 +234,4 @@ func configValue(content, sectionName, wanted string) string {
 func configPort(content string) int {
 	n, _ := strconv.Atoi(configValue(content, "interface", "ListenPort"))
 	return n
-}
-
-// replacePeer edits only [Peer] directives. It never interprets comments or
-// permits interface command hooks.
-func replacePeer(content, original string, replacement *agentapi.Peer) (string, bool) {
-	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
-	start, end := -1, len(lines)
-	for i, line := range lines {
-		if strings.EqualFold(strings.TrimSpace(line), "[Peer]") {
-			if start >= 0 {
-				end = i
-				break
-			}
-			for j := i + 1; j < len(lines); j++ {
-				key, value, ok := cutDirective(strings.TrimSpace(lines[j]))
-				if ok && strings.EqualFold(key, "PublicKey") && strings.TrimSpace(value) == strings.TrimSpace(original) {
-					start = i
-					break
-				}
-				if strings.HasPrefix(strings.TrimSpace(lines[j]), "[") {
-					break
-				}
-			}
-		}
-	}
-	if start < 0 {
-		return content, false
-	}
-	for start > 0 && strings.HasPrefix(strings.TrimSpace(lines[start-1]), "#") {
-		start--
-	}
-	var block []string
-	if replacement != nil {
-		block = []string{"[Peer]", "PublicKey = " + replacement.PublicKey}
-		if replacement.PresharedKey != "" {
-			block = append(block, "PresharedKey = "+replacement.PresharedKey)
-		}
-		block = append(block, "AllowedIPs = "+replacement.AllowedIPs)
-	}
-	out := append([]string{}, lines[:start]...)
-	out = append(out, block...)
-	out = append(out, lines[end:]...)
-	return strings.TrimRight(strings.Join(out, "\n"), "\n") + "\n", true
-}
-
-func appendPeer(content string, peer agentapi.Peer) string {
-	block := "\n[Peer]\nPublicKey = " + peer.PublicKey + "\n"
-	if peer.PresharedKey != "" {
-		block += "PresharedKey = " + peer.PresharedKey + "\n"
-	}
-	block += "AllowedIPs = " + peer.AllowedIPs + "\n"
-	return strings.TrimRight(content, "\n") + "\n" + block
 }

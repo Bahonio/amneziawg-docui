@@ -118,6 +118,23 @@ The host agent listens only on `/run/awg-docui/agent.sock` and exposes a small
 set of typed operations. It does not accept shell command strings. Root-owned
 files in `/etc/amnezia/amneziawg/*.conf` remain the source of truth.
 
+The socket directory is mounted read-only into the container. It survives agent
+restarts and is recreated by systemd-tmpfiles at boot. `/status`, the Docker
+healthcheck and the installer check connectivity through the panel's agent client.
+
+The agent allows panel changes to an explicit set of interface settings.
+Host DNS, routing tables, marks, addresses and hooks can only be preserved on
+existing configs. New peer routes must be individual addresses inside the VPN
+subnet; existing custom routes are retained only with their peer unchanged.
+Client exports can still use a default route on the client device.
+
+The panel is a trusted VPN administrator: access to the agent permits reading
+VPN keys and creating, stopping or deleting VPN interfaces. It is not a security
+boundary against all host network changes. Generated firewall rules allow VPN
+clients to reach host services and forwarded networks, including other clients
+and cloud metadata when reachable. Configure host firewall restrictions before
+sharing access with untrusted clients.
+
 Peer changes use live `awg syncconf` without cycling the interface. Before a
 write, the agent creates a timestamped backup with mode `0600`.
 

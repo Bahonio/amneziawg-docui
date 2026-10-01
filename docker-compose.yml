@@ -15,8 +15,8 @@ services:
       HOST_AGENT_SOCKET: /run/awg-docui/agent.sock
     volumes:
       - type: bind
-        source: /run/awg-docui/agent.sock
-        target: /run/awg-docui/agent.sock
+        source: /run/awg-docui
+        target: /run/awg-docui
         read_only: true
       - type: volume
         source: ui-data

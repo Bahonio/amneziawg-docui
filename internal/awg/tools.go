@@ -20,6 +20,7 @@ type PeerStats struct{ Received, Sent, LastHandshake, Endpoint string }
 type Backend interface {
 	Health() (agentapi.BackendStatus, error)
 	Interfaces() ([]agentapi.Interface, error)
+	Snapshot() ([]agentapi.InterfaceDetail, error)
 	InterfaceStatus(string) (bool, error)
 	QuickUp(string) error
 	QuickDown(string) error
@@ -72,6 +73,8 @@ func (t *Tools) QuickDown(iface string) error              { return t.backend.Qu
 func (t *Tools) Restart(iface string) error                { return t.backend.Restart(iface) }
 func (t *Tools) SyncConf(iface string) error               { return t.backend.SyncConf(iface) }
 func (t *Tools) Interfaces() ([]agentapi.Interface, error) { return t.backend.Interfaces() }
+
+func (t *Tools) Snapshot() ([]agentapi.InterfaceDetail, error) { return t.backend.Snapshot() }
 
 func (t *Tools) InterfaceStatus(iface string) (bool, error) {
 	if iface == "" {
@@ -159,11 +162,11 @@ func ParseShow(output string) map[string]PeerStats {
 
 type agentBackend struct{ client *agentclient.Client }
 
-func (b agentBackend) Health() (agentapi.BackendStatus, error)   { return b.client.Health() }
-func (b agentBackend) Interfaces() ([]agentapi.Interface, error) { return b.client.Interfaces() }
+func (b agentBackend) Health() (agentapi.BackendStatus, error)       { return b.client.Health() }
+func (b agentBackend) Interfaces() ([]agentapi.Interface, error)     { return b.client.Interfaces() }
+func (b agentBackend) Snapshot() ([]agentapi.InterfaceDetail, error) { return b.client.Snapshot() }
 func (b agentBackend) InterfaceStatus(name string) (bool, error) {
-	info, err := b.client.Interface(name)
-	return info.Running, err
+	return b.client.InterfaceStatus(name)
 }
 func (b agentBackend) QuickUp(name string) error   { return b.client.Action(name, "start") }
 func (b agentBackend) QuickDown(name string) error { return b.client.Action(name, "stop") }
@@ -184,8 +187,7 @@ func (b agentBackend) InterfaceCounters(name string) (string, string, error) {
 	return stats.Received, stats.Sent, err
 }
 func (b agentBackend) ReadConfig(name, _ string) (string, error) {
-	info, err := b.client.Interface(name)
-	return info.Config, err
+	return b.client.ReadConfig(name)
 }
 func (b agentBackend) CreateConfig(name, _ string, content, subnet string) error {
 	return b.client.Create(agentapi.CreateInterfaceRequest{Name: name, Config: content, Subnet: subnet})

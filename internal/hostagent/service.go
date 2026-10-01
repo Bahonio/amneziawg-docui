@@ -7,12 +7,14 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Bahonio/amneziawg-docui/internal/agentapi"
@@ -21,7 +23,14 @@ import (
 
 const defaultUnitPattern = "awg-docui-vpn@%s.service"
 
+type unitObservation struct {
+	unit string
+	at   time.Time
+}
+
 type Service struct {
+	unitMu     sync.Mutex
+	units      map[string]unitObservation
 	ConfigDir  string
 	ModuleDir  string
 	SocketPath string
@@ -133,6 +142,19 @@ func (s *Service) requireReady() error {
 }
 
 func (s *Service) Interfaces(ctx context.Context) ([]agentapi.Interface, error) {
+	details, err := s.Snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]agentapi.Interface, 0, len(details))
+	for _, detail := range details {
+		result = append(result, detail.Interface)
+	}
+	return result, nil
+}
+
+// Snapshot reads config and runtime metadata once per interface.
+func (s *Service) Snapshot(ctx context.Context) ([]agentapi.InterfaceDetail, error) {
 	entries, err := os.ReadDir(s.ConfigDir)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -158,11 +180,11 @@ func (s *Service) Interfaces(ctx context.Context) ([]agentapi.Interface, error) 
 		ordered = append(ordered, name)
 	}
 	sort.Strings(ordered)
-	result := make([]agentapi.Interface, 0, len(ordered))
+	result := make([]agentapi.InterfaceDetail, 0, len(ordered))
 	for _, name := range ordered {
-		info, err := s.Interface(ctx, name, false)
+		info, err := s.Interface(ctx, name, true)
 		if err == nil {
-			result = append(result, info.Interface)
+			result = append(result, info)
 		}
 	}
 	return result, nil
@@ -206,8 +228,19 @@ func (s *Service) interfaceRunning(ctx context.Context, name string) bool {
 }
 
 func (s *Service) unitEnabled(ctx context.Context, name string) bool {
-	unit := s.managedUnit(ctx, name)
-	_, err := s.command(ctx, nil, s.Systemctl, "is-enabled", "--quiet", unit)
+	// Cache discovery for reads only. Lifecycle operations always resolve
+	// the unit afresh so an external template change cannot target the wrong VPN.
+	s.unitMu.Lock()
+	if s.units == nil {
+		s.units = map[string]unitObservation{}
+	}
+	seen, ok := s.units[name]
+	if !ok || time.Since(seen.at) >= 30*time.Second {
+		seen = unitObservation{unit: s.managedUnit(ctx, name), at: time.Now()}
+		s.units[name] = seen
+	}
+	s.unitMu.Unlock()
+	_, err := s.command(ctx, nil, s.Systemctl, "is-enabled", "--quiet", seen.unit)
 	return err == nil
 }
 
@@ -225,7 +258,11 @@ func (s *Service) Create(ctx context.Context, req agentapi.CreateInterfaceReques
 	if err := validateSubnet(req.Subnet); err != nil {
 		return err
 	}
-	req.Config = addManagedFirewallHooks(req.Config, req.Subnet)
+	if err := validateNetworkPolicy(req.Config, ""); err != nil {
+		return err
+	}
+	prefix, _ := netip.ParsePrefix(strings.TrimSpace(req.Subnet))
+	req.Config = addManagedFirewallHooks(req.Config, prefix.Masked().String())
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("interface %s already has a config", req.Name)
 	} else if !os.IsNotExist(err) {
@@ -273,6 +310,9 @@ func (s *Service) Apply(ctx context.Context, name, content string, live bool) er
 	}
 	old, err := readConfigFile(path)
 	if err != nil {
+		return err
+	}
+	if err := validateNetworkPolicy(content, string(old)); err != nil {
 		return err
 	}
 	if hooks(string(old)) != hooks(content) {
@@ -476,65 +516,6 @@ func formatBytes(raw string) string {
 		return fmt.Sprintf("%d B", n)
 	}
 	return fmt.Sprintf("%.2f %s", v, units[i])
-}
-
-func (s *Service) AddPeer(ctx context.Context, name string, peer agentapi.Peer) error {
-	if err := validatePeer(peer); err != nil {
-		return err
-	}
-	path, err := s.configPath(name)
-	if err != nil {
-		return err
-	}
-	data, err := readConfigFile(path)
-	if err != nil {
-		return err
-	}
-	if _, found := replacePeer(string(data), peer.PublicKey, nil); found {
-		return errors.New("peer already exists")
-	}
-	return s.Apply(ctx, name, appendPeer(string(data), peer), true)
-}
-
-func (s *Service) UpdatePeer(ctx context.Context, name string, req agentapi.UpdatePeerRequest) error {
-	if err := validateKey("original public key", req.OriginalPublicKey, false); err != nil {
-		return err
-	}
-	if err := validatePeer(req.Peer); err != nil {
-		return err
-	}
-	path, err := s.configPath(name)
-	if err != nil {
-		return err
-	}
-	data, err := readConfigFile(path)
-	if err != nil {
-		return err
-	}
-	updated, found := replacePeer(string(data), req.OriginalPublicKey, &req.Peer)
-	if !found {
-		return os.ErrNotExist
-	}
-	return s.Apply(ctx, name, updated, true)
-}
-
-func (s *Service) DeletePeer(ctx context.Context, name, publicKey string) error {
-	if err := validateKey("public key", publicKey, false); err != nil {
-		return err
-	}
-	path, err := s.configPath(name)
-	if err != nil {
-		return err
-	}
-	data, err := readConfigFile(path)
-	if err != nil {
-		return err
-	}
-	updated, found := replacePeer(string(data), publicKey, nil)
-	if !found {
-		return os.ErrNotExist
-	}
-	return s.Apply(ctx, name, updated, true)
 }
 
 func (s *Service) Firewall(ctx context.Context, name, subnet string) map[string]string {

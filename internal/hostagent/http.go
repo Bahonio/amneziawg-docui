@@ -22,6 +22,11 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, h.Service.Health())
 		return
 	}
+	if path == "snapshot" && r.Method == http.MethodGet {
+		out, err := h.Service.Snapshot(r.Context())
+		h.reply(w, out, err)
+		return
+	}
 	if path == "interfaces" {
 		switch r.Method {
 		case http.MethodGet:
@@ -100,7 +105,23 @@ func (h Handler) interfaceRoute(w http.ResponseWriter, r *http.Request, name str
 			return
 		}
 		h.reply(w, agentapi.ActionResult{Status: tail[0]}, h.Service.Action(r.Context(), name, tail[0]))
+	case "state":
+		if r.Method != http.MethodGet {
+			h.methodNotAllowed(w)
+			return
+		}
+		h.reply(w, agentapi.Interface{Name: name, Running: h.Service.interfaceRunning(r.Context(), name)}, nil)
 	case "config":
+		if r.Method == http.MethodGet {
+			path, err := h.Service.configPath(name)
+			if err != nil {
+				h.reply(w, nil, err)
+				return
+			}
+			data, err := readConfigFile(path)
+			h.reply(w, agentapi.InterfaceDetail{Config: string(data)}, err)
+			return
+		}
 		if r.Method != http.MethodPut {
 			h.methodNotAllowed(w)
 			return
@@ -124,36 +145,9 @@ func (h Handler) interfaceRoute(w http.ResponseWriter, r *http.Request, name str
 			return
 		}
 		h.reply(w, agentapi.FirewallStatus{Checks: h.Service.Firewall(r.Context(), name, r.URL.Query().Get("subnet"))}, nil)
-	case "peers":
-		h.peerRoute(w, r, name)
 	default:
 		writeJSON(w, http.StatusNotFound, agentapi.ErrorResponse{Error: "operation not found"})
 	}
-}
-
-func (h Handler) peerRoute(w http.ResponseWriter, r *http.Request, name string) {
-	var err error
-	switch r.Method {
-	case http.MethodPost:
-		var req agentapi.Peer
-		if err = decodeJSON(r, &req); err == nil {
-			err = h.Service.AddPeer(r.Context(), name, req)
-		}
-	case http.MethodPut:
-		var req agentapi.UpdatePeerRequest
-		if err = decodeJSON(r, &req); err == nil {
-			err = h.Service.UpdatePeer(r.Context(), name, req)
-		}
-	case http.MethodDelete:
-		var req agentapi.DeletePeerRequest
-		if err = decodeJSON(r, &req); err == nil {
-			err = h.Service.DeletePeer(r.Context(), name, req.PublicKey)
-		}
-	default:
-		h.methodNotAllowed(w)
-		return
-	}
-	h.reply(w, agentapi.ActionResult{Status: "applied"}, err)
 }
 
 func decodeJSON(r *http.Request, out any) error {
