@@ -22,6 +22,8 @@ jobs:
           cache: true
       - name: Validate shell scripts
         run: find . -type f -name '*.sh' -print0 | xargs -0 -n1 sh -n
+      - name: Test automatic release tagging and retries
+        run: make test-auto-release
       - name: Verify distribution licensing and notices
         run: sh scripts/check-licenses.sh
       - name: Prove installer VPN isolation
@@ -70,33 +72,19 @@ jobs:
           grep -Fxq 'etc/ssl/certs/ca-certificates.crt' rootfs-files.txt
           ! grep -Eq '^(bin/|lib/|sbin/|usr/bin/|usr/sbin/|var/lib/apk/)' rootfs-files.txt
 
-  first-release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  auto-release:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     needs: [test, image]
     runs-on: ubuntu-latest
+    concurrency:
+      group: auto-release
+      cancel-in-progress: false
     permissions:
       contents: write
       actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Create and publish the first release tag
+      - name: Create the next version tag and start its release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: v0.1.0
-        run: |
-          tag_sha=$(git ls-remote --tags origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}')
-          if [ -z "$tag_sha" ]; then
-            git tag "$RELEASE_TAG" "$GITHUB_SHA"
-            git push origin "refs/tags/${RELEASE_TAG}"
-          elif [ "$tag_sha" != "$GITHUB_SHA" ]; then
-            echo "$RELEASE_TAG already belongs to an earlier commit; this push is not the first release."
-            exit 0
-          fi
-
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "$RELEASE_TAG is already published."
-            exit 0
-          fi
-          # A tag pushed with GITHUB_TOKEN does not trigger another workflow.
-          # workflow_dispatch does, so launch the existing release workflow at the tag.
-          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_TAG"
+        run: sh scripts/auto-release.sh

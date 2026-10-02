@@ -195,13 +195,21 @@ This selects image `0.2.0` instead of `latest`.
 Dependabot checks Go modules, the Docker base image, GitHub Actions, and the
 Playwright package every Monday. It opens pull requests for available updates;
 CI runs on each pull request and once a week. Review the changes and passing
-checks before merging. Dependency updates do not publish a new version.
+checks before merging.
 
-After merging a tested change, create and push the next `vX.Y.Z` tag from
-`main`. The release workflow builds the agent and image, verifies the installer,
-and publishes the assets. Check the release and image before announcing the
-update. The image remains `ghcr.io/bahonio/awg-docui` so existing installations
-continue to receive updates after the repository rename.
+Every push to `main` automatically publishes the next patch version after both
+CI jobs pass, including merged dependency updates. Starting from `v0.1.2`, the
+next version is `v0.1.3`. The release workflow builds the agent and image,
+verifies the installer, and publishes the assets. If newer commits arrive
+during CI, the older run leaves the release to the latest commit's CI.
+Pull requests and scheduled CI runs only run checks.
+
+To retry a failed release, rerun CI or manually run the CI workflow on `main`.
+It reuses the commit's existing tag and skips published or active releases.
+You can still push a `vX.Y.Z` tag for a minor or major version; subsequent
+automatic releases increment its patch number. Check the release and image
+before announcing the update. The image remains `ghcr.io/bahonio/awg-docui` so
+existing installations continue to receive updates after the repository rename.
 
 The official AmneziaWG kernel package is maintained by Amnezia through its PPA;
 it is not a dependency bundled into this project. Review PPA package updates

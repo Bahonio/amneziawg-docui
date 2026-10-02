@@ -20,9 +20,12 @@ build-host-agent: ## Build the Linux host agent
 .PHONY: build
 build: build-server build-host-agent ## Build the Web application and host agent
 
-.PHONY: test test-installer-safety
-test: test-installer-safety ## Run all Go and installer tests
+.PHONY: test test-installer-safety test-auto-release
+test: test-installer-safety test-auto-release ## Run all Go, installer and release automation tests
 	go test ./...
+
+test-auto-release: ## Test version tagging and release retries against a disposable Git remote
+	sh scripts/test-auto-release.sh
 
 test-installer-safety: ## Prove the installer cannot restart existing VPN units
 	./scripts/test-installer-safety.sh
