@@ -17,8 +17,9 @@ DocUI management agent does not stop VPN interfaces.
 
 ## Quick install on a fresh VPS
 
-Automated installation supports 64-bit Ubuntu 22.04 and 24.04 on `amd64` and
-`arm64`, matching the releases currently published in Amnezia's official PPA:
+Automated installation supports Ubuntu 22.04/24.04 and Debian 12 (bookworm)/13
+(trixie) on `amd64` and `arm64`, using official distribution kernels with
+headers available for the running kernel:
 
 ```sh
 curl -fsSL -o /tmp/awg-docui-install.sh \
@@ -28,14 +29,26 @@ curl -fsSL -o /tmp/awg-docui-install.sh \
 
 On a fresh host, the installer:
 
-1. enables the [official Amnezia PPA](https://launchpad.net/~amnezia/+archive/ubuntu/ppa);
+1. enables the [official Amnezia PPA](https://launchpad.net/~amnezia/+archive/ubuntu/ppa)
+   and the source repositories needed by DKMS;
 2. installs headers for the running kernel, the official `amneziawg` package,
    DKMS, `awg` and `awg-quick`;
 3. loads the kernel module and enables persistent IPv4 forwarding;
 4. installs Docker Engine and Compose v2 from
-   [Docker's official repository](https://docs.docker.com/engine/install/ubuntu/);
+   Docker's official repository for
+   [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) or
+   [Debian](https://docs.docker.com/engine/install/debian/);
 5. downloads the host agent and verifies its SHA-256 checksum;
 6. starts the Web UI and prints a generated password.
+
+On Debian, the installer uses Amnezia's `focal` PPA suite, as specified in
+[Amnezia's Debian instructions](https://docs.amnezia.org/documentation/instructions/install-amneziawg-kernel-module-linux/).
+It verifies the full signing-key fingerprint and scopes that key with
+`Signed-By`, without `apt-key`. Debian source entries are added separately;
+the existing binary repositories are preserved. Docker uses the Debian
+`bookworm` or `trixie` repository. If headers for the running kernel are missing,
+installation stops before installing AmneziaWG; install the matching headers
+or reboot into an installed distribution kernel before retrying.
 
 The panel binds only to `127.0.0.1:54845` by default. Open an SSH tunnel:
 
@@ -153,7 +166,7 @@ sudo apt install --only-upgrade amneziawg
 ```
 
 AWG DocUI does not replace or publish its own kernel module build. After a
-kernel update, DKMS must build the module for the new kernel; Ubuntu determines
+kernel update, DKMS must build the module for the new kernel; the distribution determines
 whether that update requires a reboot.
 
 ### Web UI only
@@ -197,9 +210,10 @@ Playwright package every Monday. It opens pull requests for available updates;
 CI runs on each pull request and once a week. Review the changes and passing
 checks before merging.
 
-Every push to `main` automatically publishes the next patch version after both
-CI jobs pass, including merged dependency updates. Starting from `v0.1.2`, the
-next version is `v0.1.3`. The release workflow builds the agent and image,
+Every push to `main` automatically publishes the next patch version after all
+CI jobs pass, including merged dependency updates. CI also installs official
+AmneziaWG packages and builds DKMS modules against Debian 12/13 kernels on
+native `amd64` and `arm64` runners. The release workflow builds the agent and image,
 verifies the installer, and publishes the assets. If newer commits arrive
 during CI, the older run leaves the release to the latest commit's CI.
 Pull requests and scheduled CI runs only run checks.
@@ -214,6 +228,13 @@ existing installations continue to receive updates after the repository rename.
 The official AmneziaWG kernel package is maintained by Amnezia through its PPA;
 it is not a dependency bundled into this project. Review PPA package updates
 separately and test them on a disposable host before upgrading a VPN server.
+
+Run `make test-installer-sandbox` for isolated fresh/adopt/update checks,
+including Debian repository selection and preservation of existing VPN files.
+Run `make test-debian-packages` to download official packages and build modules
+for Debian 12/13 on the local architecture. This check needs Docker and network
+access. Containers verify compilation; loading a module and testing VPN traffic
+require a real Debian host with the matching running kernel.
 
 ## Manual installation from a checkout
 

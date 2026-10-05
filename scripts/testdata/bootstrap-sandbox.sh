@@ -9,23 +9,38 @@ if [ "${AWG_DOCUI_BOOTSTRAP_SANDBOX:-}" != yes ] \
 fi
 
 scenario=${AWG_DOCUI_BOOTSTRAP_SCENARIO:?}
+distribution=${AWG_DOCUI_BOOTSTRAP_DISTRIBUTION:-ubuntu:24.04}
+test_arch=${AWG_DOCUI_BOOTSTRAP_ARCH:-amd64}
 mkdir -p /fixture/bin /run/systemd/system /etc/systemd/system \
     /etc/amnezia/amneziawg /opt/awg-docui
 export PATH="/fixture/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-cat > /fixture/os-release <<'EOF'
-ID=ubuntu
-VERSION_ID="24.04"
-VERSION_CODENAME=noble
-UBUNTU_CODENAME=noble
-EOF
+case "$distribution" in
+    ubuntu:22.04) suite=jammy ;;
+    ubuntu:24.04) suite=noble ;;
+    debian:12) suite=bookworm ;;
+    debian:13) suite=trixie ;;
+    debian:11) suite=bullseye ;;
+    *) echo "Unknown test distribution: $distribution" >&2; exit 1 ;;
+esac
+printf 'ID=%s\nVERSION_ID="%s"\nVERSION_CODENAME=%s\n' \
+    "${distribution%:*}" "${distribution#*:}" "$suite" > /fixture/os-release
+export AWG_DOCUI_OS_RELEASE_FILE=/fixture/os-release
+if [ "${AWG_DOCUI_BOOTSTRAP_KEYRING:-}" = legacy ]; then
+    sed -i 's/debian-archive-keyring\.pgp/debian-archive-keyring.gpg/g' /etc/apt/sources.list.d/debian.sources
+fi
+sha256sum /etc/apt/sources.list.d/debian.sources > /fixture/debian-sources.sha
 printf '#!/bin/sh\nexit 0\n' > /fixture/agent
 chmod 0755 /fixture/agent
 
 cat > /fixture/bin/uname <<'SH'
 #!/bin/sh
 case "$1" in
-    -m) echo x86_64 ;;
+    -m)
+        case "${AWG_DOCUI_BOOTSTRAP_ARCH:-amd64}" in
+            amd64) echo x86_64 ;; arm64) echo aarch64 ;;
+            *) echo "${AWG_DOCUI_BOOTSTRAP_ARCH}" ;;
+        esac ;;
     -r) echo 6.8.0-sandbox ;;
     *) exit 1 ;;
 esac
@@ -49,6 +64,7 @@ for argument in "$@"; do
     case "$argument" in https://*) url=$argument ;; esac
     previous=$argument
 done
+printf '%s\n' "$url" >> /fixture/curl.log
 if [ -n "$output" ]; then
     case "$url" in
         */SHA256SUMS) cp /fixture/release/SHA256SUMS "$output" ;;
@@ -60,8 +76,16 @@ exit 0
 SH
 cat > /fixture/bin/dpkg <<'SH'
 #!/bin/sh
-[ "$*" = '--print-architecture' ] && { echo amd64; exit 0; }
+[ "$*" = '--print-architecture' ] && { echo "${AWG_DOCUI_BOOTSTRAP_ARCH:-amd64}"; exit 0; }
 exit 1
+SH
+cat > /fixture/bin/gpg <<'SH'
+#!/bin/sh
+case "${AWG_DOCUI_BOOTSTRAP_SCENARIO:-}" in
+    bad-key) fingerprint=0000000000000000000000000000000000000000 ;;
+    *) fingerprint=75C9DD72C799870E310542E24166F2C257290828 ;;
+esac
+printf 'pub::::::::::\nfpr:::::::::%s:\n' "$fingerprint"
 SH
 cat > /fixture/bin/sysctl <<'SH'
 #!/bin/sh
@@ -69,6 +93,8 @@ printf '%s\n' "$*" >> /fixture/sysctl.log
 SH
 cat > /fixture/bin/add-apt-repository <<'SH'
 #!/bin/sh
+[ "${AWG_DOCUI_BOOTSTRAP_DISTRIBUTION:-ubuntu:24.04}" != debian:12 ] || exit 1
+[ "${AWG_DOCUI_BOOTSTRAP_DISTRIBUTION:-ubuntu:24.04}" != debian:13 ] || exit 1
 printf '%s\n' "$*" >> /fixture/repositories.log
 SH
 cat > /fixture/bin/getent <<'SH'
@@ -135,6 +161,10 @@ cat > /fixture/bin/apt-get <<'SH'
 #!/bin/sh
 set -eu
 printf '%s\n' "$*" >> /fixture/apt.log
+if [ "${AWG_DOCUI_BOOTSTRAP_SCENARIO:-}" = missing-headers ] \
+    && printf '%s\n' "$*" | grep -q 'linux-headers-'; then
+    exit 1
+fi
 case " $* " in
     *' amneziawg '*)
         cat > /fixture/bin/awg <<'EOF'
@@ -283,7 +313,26 @@ case "$scenario" in
         assert_license_install
         assert_install_log
         grep -Fq 'Web UI password: 0123456789abcdef0123456789abcdef0123' /fixture/output
-        echo 'PASS: fresh bootstrap installs official host packages, Docker, forwarding, agent and UI'
+        grep -Fxq "URIs: https://download.docker.com/linux/${distribution%:*}" /etc/apt/sources.list.d/docker.sources
+        grep -Fxq "Suites: $suite" /etc/apt/sources.list.d/docker.sources
+        grep -Fxq "Architectures: $test_arch" /etc/apt/sources.list.d/docker.sources
+        case "$distribution" in
+            debian:*)
+                [ ! -e /fixture/repositories.log ]
+                ! grep -Eq 'software-properties-common|python3-launchpadlib' /fixture/apt.log
+                grep -Fxq 'Suites: focal' /etc/apt/sources.list.d/awg-docui-amnezia.sources
+                grep -Fxq 'Types: deb deb-src' /etc/apt/sources.list.d/awg-docui-amnezia.sources
+                grep -Fxq 'Signed-By: /etc/apt/keyrings/awg-docui-amnezia.asc' /etc/apt/sources.list.d/awg-docui-amnezia.sources
+                grep -Fxq "Suites: $suite $suite-updates" /etc/apt/sources.list.d/awg-docui-debian-src.sources
+                grep -Fxq "Suites: $suite-security" /etc/apt/sources.list.d/awg-docui-debian-src.sources
+                archive_key=$(awk '/^Signed-By:/ { print $2; exit }' /etc/apt/sources.list.d/debian.sources)
+                grep -Fxq "Signed-By: $archive_key" /etc/apt/sources.list.d/awg-docui-debian-src.sources
+                [ "$(stat -c '%a' /etc/apt/keyrings/awg-docui-amnezia.asc)" = 644 ]
+                ;;
+            ubuntu:*) grep -Fxq -- '-y --enable-source ppa:amnezia/ppa' /fixture/repositories.log ;;
+        esac
+        cmp /source/scripts/setup-debian-repositories.sh /opt/awg-docui/scripts/setup-debian-repositories.sh
+        echo "PASS: fresh $distribution/$test_arch bootstrap installs official host packages, Docker, forwarding, agent and UI"
         ;;
     adopt)
         prepare_existing_host
@@ -333,7 +382,7 @@ EOF
         cp /source/LICENSES/MPL-2.0.txt /fixture/release/bundle/LICENSES/
         cp /source/packaging/awg-docui-agent.service \
             /source/packaging/awg-docui-vpn@.service /source/packaging/awg-docui-tmpfiles.conf /fixture/release/bundle/packaging/
-        cp /source/scripts/check-agent-unit.sh /fixture/release/bundle/scripts/
+        cp /source/scripts/check-agent-unit.sh /source/scripts/setup-debian-repositories.sh /fixture/release/bundle/scripts/
         printf 'v0.3.0\n' > /fixture/release/bundle/VERSION
         tar -C /fixture/release/bundle -czf /fixture/release/awg-docui-install-bundle.tar.gz .
         (cd /fixture/release && sha256sum awg-docui-install-bundle.tar.gz > SHA256SUMS)
@@ -400,5 +449,27 @@ SH
         [ ! -e /fixture/docker.log ]
         echo 'PASS: symlinked installer log path is rejected before host changes'
         ;;
+    unsupported|unsupported-arch|bad-key|missing-headers)
+        if AWG_DOCUI_SKIP_BUNDLE_DOWNLOAD=yes \
+            sh /source/install.sh --fresh --agent-binary /fixture/agent > /fixture/output 2>&1; then
+            echo "FAIL: $scenario was accepted" >&2; exit 1
+        fi
+        [ ! -e /fixture/docker.log ]
+        [ ! -e /fixture/modprobe.log ]
+        [ ! -e /fixture/sysctl.log ]
+        [ ! -e /etc/apt/sources.list.d/awg-docui-amnezia.sources ]
+        case "$scenario" in
+            unsupported)
+                [ ! -e /fixture/apt.log ]
+                grep -Fq 'Fresh installation supports Ubuntu 22.04/24.04 and Debian 12/13 only' /fixture/output ;;
+            unsupported-arch)
+                [ ! -e /fixture/apt.log ]
+                grep -Fq 'Unsupported host architecture: armv7' /fixture/output ;;
+            bad-key) grep -Fq 'signing key fingerprint did not match' /fixture/output ;;
+            missing-headers) ! grep -Fq 'install -y amneziawg' /fixture/apt.log ;;
+        esac
+        echo "PASS: $scenario aborts before AmneziaWG, module, forwarding or Docker changes"
+        ;;
     *) echo "Unknown scenario: $scenario" >&2; exit 1 ;;
 esac
+sha256sum -c /fixture/debian-sources.sha >/dev/null

@@ -72,9 +72,28 @@ jobs:
           grep -Fxq 'etc/ssl/certs/ca-certificates.crt' rootfs-files.txt
           ! grep -Eq '^(bin/|lib/|sbin/|usr/bin/|usr/sbin/|var/lib/apk/)' rootfs-files.txt
 
+  debian-packages:
+    name: Debian ${{ matrix.suite }} (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install official packages and build against a Debian kernel
+        run: sh scripts/test-debian-packages.sh "${{ matrix.suite }}" "${{ matrix.arch }}"
+
   auto-release:
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-    needs: [test, image]
+    needs: [test, image, debian-packages]
     runs-on: ubuntu-latest
     concurrency:
       group: auto-release

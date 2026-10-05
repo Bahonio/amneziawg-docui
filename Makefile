@@ -36,6 +36,10 @@ test-installer-sandbox: ## Exercise the installer on a simulated host in a dispo
 	./scripts/test-installer-sandbox.sh
 	./scripts/test-bootstrap-sandbox.sh
 
+.PHONY: test-debian-packages
+test-debian-packages: ## Install official AmneziaWG packages and build DKMS on Debian 12/13 (network required)
+	sh scripts/test-debian-packages.sh
+
 .PHONY: vet
 vet: ## Run Go static analysis
 	go vet ./...
