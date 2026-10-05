@@ -14,9 +14,9 @@ management-agent не останавливают VPN-интерфейсы.
 
 ## Быстрая установка на чистый VPS
 
-Автоматическая установка поддерживает 64-битные Ubuntu 22.04 и 24.04 на
-`amd64` и `arm64`, для которых сейчас опубликованы пакеты в официальном PPA
-Amnezia:
+Автоматическая установка поддерживает Ubuntu 22.04/24.04 и Debian 12 (bookworm)/13
+(trixie) на `amd64` и `arm64` со штатными ядрами дистрибутива. Для работающего
+ядра должны быть доступны соответствующие headers:
 
 ```sh
 curl -fsSL -o /tmp/awg-docui-install.sh \
@@ -26,14 +26,26 @@ curl -fsSL -o /tmp/awg-docui-install.sh \
 
 На чистом host установщик:
 
-1. подключает [официальный PPA Amnezia](https://launchpad.net/~amnezia/+archive/ubuntu/ppa);
+1. подключает [официальный PPA Amnezia](https://launchpad.net/~amnezia/+archive/ubuntu/ppa)
+   и репозитории исходников, необходимые DKMS;
 2. устанавливает headers текущего kernel, официальный пакет `amneziawg`, DKMS,
    `awg` и `awg-quick`;
 3. загружает kernel module и включает постоянный IPv4 forwarding;
 4. устанавливает Docker Engine и Compose v2 из
-   [официального Docker repository](https://docs.docker.com/engine/install/ubuntu/);
+   официального Docker repository для
+   [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) или
+   [Debian](https://docs.docker.com/engine/install/debian/);
 5. скачивает host-agent с SHA-256 проверкой;
 6. запускает Web UI и печатает сгенерированный пароль.
+
+На Debian installer использует suite `focal` официального PPA Amnezia согласно
+[инструкции Amnezia для Debian](https://docs.amnezia.org/ru/documentation/instructions/install-amneziawg-kernel-module-linux/).
+Полный отпечаток ключа проверяется, а доверие ограничено этим репозиторием через
+`Signed-By`; `apt-key` не используется. Репозитории исходников Debian добавляются
+отдельно, существующие binary repositories сохраняются. Для Docker используется
+репозиторий Debian `bookworm` или `trixie`. Если headers работающего ядра
+недоступны, установка завершится до установки AmneziaWG: установите подходящие
+headers или перезагрузитесь в установленное штатное ядро перед повторной попыткой.
 
 Панель по умолчанию слушает только `127.0.0.1:54845`. Откройте SSH tunnel:
 
@@ -152,7 +164,7 @@ sudo apt install --only-upgrade amneziawg
 
 AWG DocUI не заменяет и не публикует собственную сборку kernel module. После
 обновления kernel DKMS должен собрать module для нового kernel; необходимость
-reboot определяется обновлением Ubuntu.
+reboot определяется обновлением дистрибутива.
 
 ### Только Web UI
 
@@ -196,8 +208,10 @@ CI проверяет каждый PR и дополнительно запуск
 проверьте изменения и результаты CI.
 
 Каждый push в `main` автоматически выпускает следующую patch-версию после
-успеха обоих заданий CI, включая слияния обновлений зависимостей. После `v0.1.2`
-будет создан `v0.1.3`. Release workflow соберёт agent и образ, проверит installer
+успеха всех заданий CI, включая слияния обновлений зависимостей. CI также
+устанавливает официальные пакеты AmneziaWG и собирает DKMS-модули под ядра
+Debian 12/13 на нативных runners `amd64` и `arm64`. Release workflow соберёт
+agent и образ, проверит installer
 и опубликует файлы. Если за время CI появились новые коммиты, старый запуск
 передаёт выпуск CI последнего коммита. Проверки PR и запуски по расписанию
 только проверяют код.
@@ -213,6 +227,13 @@ patch-номер. Перед объявлением обновления про�
 Официальный kernel package AmneziaWG приходит из PPA Amnezia и не входит в
 зависимости этой панели. Обновления пакета проверяйте отдельно на тестовом
 сервере перед обновлением рабочего VPN.
+
+`make test-installer-sandbox` проверяет fresh/adopt/update в изолированных
+контейнерах, включая выбор Debian repositories и сохранение существующих
+VPN-файлов. `make test-debian-packages` скачивает официальные пакеты и собирает
+модули под ядра Debian 12/13 на локальной архитектуре; нужны Docker и доступ
+к сети. В контейнерах проверяется сборка. Для загрузки модуля и проверки
+VPN-трафика нужен настоящий Debian host с соответствующим работающим ядром.
 
 ## Ручная установка из checkout
 

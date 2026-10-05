@@ -17,7 +17,7 @@ usage() {
     cat <<'EOF'
 Usage: install.sh [OPTIONS]
 
-Install AWG DocUI on Ubuntu or safely attach it to an existing AmneziaWG host.
+Install AWG DocUI on Ubuntu/Debian or attach it to an existing AmneziaWG host.
 
 Options:
   --fresh                 Require a host without an existing AmneziaWG setup
@@ -227,7 +227,8 @@ for support_path in \
     packaging/awg-docui-agent.service \
     packaging/awg-docui-tmpfiles.conf \
     packaging/awg-docui-vpn@.service \
-    scripts/check-agent-unit.sh; do
+    scripts/check-agent-unit.sh \
+    scripts/setup-debian-repositories.sh; do
     [ -f "$SCRIPT_DIR/$support_path" ] || support_complete=no
 done
 
@@ -327,15 +328,14 @@ install_fresh_dependencies() {
     [ -r "$OS_RELEASE_FILE" ] || { echo "Cannot read $OS_RELEASE_FILE" >&2; exit 1; }
     # shellcheck disable=SC1090
     . "$OS_RELEASE_FILE"
-    [ "${ID:-}" = ubuntu ] || {
-        echo "Fresh installation currently supports Ubuntu only." >&2
-        echo "Install the official AmneziaWG module, tools and Docker manually, then use --adopt." >&2
-        exit 1
-    }
-    case "${VERSION_ID:-}" in
-        22.04|24.04) ;;
+    case "${ID:-}:${VERSION_ID:-}" in
+        ubuntu:22.04) docker_distro=ubuntu; docker_suite=jammy ;;
+        ubuntu:24.04) docker_distro=ubuntu; docker_suite=noble ;;
+        debian:12) docker_distro=debian; docker_suite=bookworm ;;
+        debian:13) docker_distro=debian; docker_suite=trixie ;;
         *)
-            echo "Ubuntu ${VERSION_ID:-unknown} is outside the supported 22.04/24.04 LTS set." >&2
+            echo "Fresh installation supports Ubuntu 22.04/24.04 and Debian 12/13 only; detected ${ID:-unknown} ${VERSION_ID:-unknown}." >&2
+            echo "Install the official AmneziaWG module, tools and Docker manually, then use --adopt." >&2
             exit 1
             ;;
     esac
@@ -343,13 +343,16 @@ install_fresh_dependencies() {
 
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
-    apt-get install -y ca-certificates curl gnupg iproute2 iptables kmod openssl linux-headers-"$(uname -r)" \
-        python3-launchpadlib software-properties-common
+    apt-get install -y ca-certificates curl gnupg iproute2 iptables kmod openssl linux-headers-"$(uname -r)"
 
-    # Amnezia's package instructions require Ubuntu source repositories. Two
-    # --enable-source flags also add missing deb-src entries for enabled repos.
-    add-apt-repository -y --enable-source --enable-source
-    add-apt-repository -y --enable-source ppa:amnezia/ppa
+    if [ "$docker_distro" = ubuntu ]; then
+        apt-get install -y python3-launchpadlib software-properties-common
+        # Two flags also add missing deb-src entries for enabled Ubuntu repos.
+        add-apt-repository -y --enable-source --enable-source
+        add-apt-repository -y --enable-source ppa:amnezia/ppa
+    else
+        sh "$SCRIPT_DIR/scripts/setup-debian-repositories.sh" "$docker_suite"
+    fi
     apt-get update
     apt-get install -y amneziawg
 
@@ -372,16 +375,14 @@ install_fresh_dependencies() {
     if ! command -v docker >/dev/null 2>&1; then
         install -m 0755 -d /etc/apt/keyrings
         docker_key_tmp=$(mktemp /tmp/docker-key.XXXXXX)
-        curl --proto '=https' --tlsv1.2 -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        curl --proto '=https' --tlsv1.2 -fsSL "https://download.docker.com/linux/$docker_distro/gpg" \
             -o "$docker_key_tmp"
         install -m 0644 "$docker_key_tmp" /etc/apt/keyrings/docker.asc
         rm -f "$docker_key_tmp"
-        docker_suite=${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}
-        [ -n "$docker_suite" ] || { echo "Cannot determine the Ubuntu release codename." >&2; exit 1; }
         docker_arch=$(dpkg --print-architecture)
         cat > /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
-URIs: https://download.docker.com/linux/ubuntu
+URIs: https://download.docker.com/linux/$docker_distro
 Suites: $docker_suite
 Components: stable
 Architectures: $docker_arch
@@ -418,6 +419,13 @@ verify_adopt_dependencies() {
     fi
 }
 
+machine_arch=$(uname -m)
+case "$machine_arch" in
+    x86_64|amd64) release_arch=amd64 ;;
+    aarch64|arm64) release_arch=arm64 ;;
+    *) echo "Unsupported host architecture: $machine_arch" >&2; exit 1 ;;
+esac
+
 stage 2 'Checking or installing host dependencies'
 
 if [ "$mode" = fresh ]; then
@@ -427,13 +435,6 @@ else
 fi
 
 stage 3 'Preparing verified AWG DocUI release artifacts'
-
-machine_arch=$(uname -m)
-case "$machine_arch" in
-    x86_64|amd64) release_arch=amd64 ;;
-    aarch64|arm64) release_arch=arm64 ;;
-    *) echo "Unsupported host architecture: $machine_arch" >&2; exit 1 ;;
-esac
 
 if [ -z "$requested_version" ] && [ -s "$SCRIPT_DIR/VERSION" ]; then
     requested_version=$(sed -n '1p' "$SCRIPT_DIR/VERSION")
@@ -498,6 +499,7 @@ install -m 0755 "$SCRIPT_DIR/install.sh" "$INSTALL_DIR/install.sh"
 install -m 0755 "$SCRIPT_DIR/install-host-agent.sh" "$INSTALL_DIR/install-host-agent.sh"
 install -m 0755 "$SCRIPT_DIR/uninstall-host-agent.sh" "$INSTALL_DIR/uninstall-host-agent.sh"
 install -m 0755 "$SCRIPT_DIR/scripts/check-agent-unit.sh" "$INSTALL_DIR/scripts/check-agent-unit.sh"
+install -m 0755 "$SCRIPT_DIR/scripts/setup-debian-repositories.sh" "$INSTALL_DIR/scripts/setup-debian-repositories.sh"
 install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-agent.service" "$INSTALL_DIR/packaging/awg-docui-agent.service"
 install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-tmpfiles.conf" "$INSTALL_DIR/packaging/awg-docui-tmpfiles.conf"
 install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-vpn@.service" "$INSTALL_DIR/packaging/awg-docui-vpn@.service"
