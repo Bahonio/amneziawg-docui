@@ -5,10 +5,27 @@
 
 web_env_value() {
     [ -f "$1" ] || return 0
-    awk -v key="$2" 'index($0, key "=") == 1 { value=substr($0, length(key)+2) }
+    awk -v key="$2" '{
+            line=$0
+            sub(/\r$/, "", line)
+            sub(/^[ \t]*/, "", line)
+            sub(/^export[ \t]+/, "", line)
+            if (substr(line,1,length(key)) != key) next
+            rest=substr(line,length(key)+1)
+            if (rest !~ /^[ \t]*=/) next
+            sub(/^[ \t]*=[ \t]*/, "", rest)
+            value=rest
+        }
         END {
-            sub(/\r$/, "", value)
-            if (value ~ /^".*"$/ || value ~ /^\047.*\047$/) value=substr(value, 2, length(value)-2)
+            sub(/[ \t]*$/, "", value)
+            if (value ~ /^"[^"]*"([ \t]*#.*)?$/ || value ~ /^\047[^\047]*\047([ \t]*#.*)?$/) {
+                quote=substr(value,1,1)
+                value=substr(value,2)
+                value=substr(value,1,index(value,quote)-1)
+            } else {
+                sub(/[ \t]+#.*/, "", value)
+                sub(/[ \t]*$/, "", value)
+            }
             print value
         }' "$1"
 }

@@ -91,7 +91,7 @@ func TestWebAccessOptionsAndPreservation(t *testing.T) {
 	dir := t.TempDir()
 	envPath := filepath.Join(dir, ".env")
 	// Include a value that would execute if the installer sourced .env.
-	contents := "WEB_UI_BIND_ADDRESS=10.66.66.1\nWEB_UI_PORT=8445\nWEB_UI_URL=\"https://panel.example.com\"\nOTHER=$(exit 99)\n"
+	contents := " export WEB_UI_BIND_ADDRESS = '10.66.66.1' # VPN\nWEB_UI_PORT=8445 # panel port\nWEB_UI_URL=\"https://panel.example.com\" # browser\nOTHER=$(exit 99)\n"
 	if err := os.WriteFile(envPath, []byte(contents), 0o600); err != nil {
 		t.Fatal(err)
 	}
