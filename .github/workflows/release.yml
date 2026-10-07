@@ -126,6 +126,7 @@ jobs:
           mkdir -p dist/bundle/packaging dist/bundle/scripts dist/bundle/LICENSES
           install -m 0755 install.sh install-host-agent.sh uninstall-host-agent.sh dist/bundle/
           install -m 0755 scripts/check-agent-unit.sh scripts/setup-debian-repositories.sh dist/bundle/scripts/
+          install -m 0644 scripts/web-access.sh dist/bundle/scripts/
           install -m 0644 packaging/awg-docui-agent.service packaging/awg-docui-vpn@.service packaging/awg-docui-tmpfiles.conf dist/bundle/packaging/
           install -m 0644 docker-compose.yml .env.example dist/bundle/
           install -m 0644 LICENSE NOTICE THIRD_PARTY_NOTICES.txt dist/bundle/

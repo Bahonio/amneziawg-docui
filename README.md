@@ -50,7 +50,20 @@ the existing binary repositories are preserved. Docker uses the Debian
 installation stops before installing AmneziaWG; install the matching headers
 or reboot into an installed distribution kernel before retrying.
 
-The panel binds only to `127.0.0.1:54845` by default. Open an SSH tunnel:
+On a new interactive install, choose how to access the panel:
+
+1. **SSH tunnel** (default): publish on `127.0.0.1`, then print the tunnel command.
+2. **VPN / local network**: select a server IP from the list or enter it manually.
+3. **Domain through a reverse proxy**: publish on loopback and enter the browser URL.
+   Configure DNS and HTTPS separately; a proxy on the host must preserve the original
+   `Host` header and forward to the printed loopback upstream.
+4. **All interfaces**: publish on `0.0.0.0`; restrict access with your firewall.
+
+Each option asks for the panel TCP port. IP addresses must belong to the server,
+not to a VPN client. IPv4 and IPv6 are supported. The installer prints the effective
+binding and browser URL; it does not change routing, firewall, DNS or reverse proxies.
+
+For SSH access with the default port, open a tunnel:
 
 ```sh
 ssh -L 54845:127.0.0.1:54845 root@SERVER_IP
@@ -59,8 +72,26 @@ ssh -L 54845:127.0.0.1:54845 root@SERVER_IP
 Open `http://127.0.0.1:54845`, sign in as `admin` with the password printed by
 the installer, then create the first interface and client in the UI.
 
-The installer does not expose the panel publicly or create a VPN interface
-without a user action.
+For an unattended VPN install, use flags (the IP below is an example server address):
+
+```sh
+sudo sh /tmp/awg-docui-install.sh --adopt --access vpn --bind-address 10.66.66.1 --web-port 54845
+```
+
+Access flags skip the menu. `--access proxy` requires `--panel-url https://panel.example.com`.
+`--bind-address` accepts an IP; a DNS name belongs in `--panel-url`. Without a terminal,
+new installs keep loopback defaults. `--non-interactive` explicitly disables the menu.
+Existing installs and updates keep their access settings unless changed by flags.
+To reopen the menu on an installed panel, run:
+
+```sh
+sudo /opt/awg-docui/install.sh --configure-access
+```
+
+Manual Compose installations use `WEB_UI_BIND_ADDRESS`, `WEB_UI_PORT` and the optional
+`WEB_UI_URL` in `.env`. The URL is for installer output only; it does not set up DNS,
+TLS or redirects. Apply edits with `docker compose up -d` from the install directory.
+The installer does not create a VPN interface without a user action.
 
 It prints seven numbered stages. Complete command output is appended to
 `/var/log/awg-docui/install.log` with mode `0600`; the generated Web password

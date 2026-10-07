@@ -12,6 +12,14 @@ version_was_requested=no
 agent_binary=""
 image_override=""
 pull_image=yes
+access=""
+requested_bind=""
+requested_port=""
+requested_url=""
+url_was_requested=no
+access_flags=no
+configure_access=no
+non_interactive=no
 
 usage() {
     cat <<'EOF'
@@ -27,6 +35,12 @@ Options:
   --agent-binary PATH     Use a local host-agent binary instead of downloading one
   --image IMAGE           Override the AWG DocUI container image
   --no-pull               Use an image that is already present on the host
+  --access MODE           Panel access: ssh, vpn, proxy or all
+  --bind-address IP       Publish the panel on this host IP (not a hostname)
+  --web-port PORT         Panel TCP port (default: 54845)
+  --panel-url URL         Browser URL, e.g. https://panel.example.com
+  --configure-access      Open the access menu, including on an existing install
+  --non-interactive       Skip the menu; keep existing settings or loopback defaults
   -h, --help              Show this help
 
 In auto mode, any existing module, tool, config, interface, or VPN unit selects
@@ -36,6 +50,10 @@ mode. Official AmneziaWG updates remain managed by APT.
 Numbered stages are printed to the terminal. Full output is appended to
 /var/log/awg-docui/install.log with mode 0600; generated passwords are never
 written to that log.
+
+New interactive installs offer an access menu. Access flags skip that menu.
+Existing access settings are preserved unless explicitly changed. DNS, HTTPS,
+reverse proxies and firewall rules are configured separately.
 EOF
 }
 
@@ -76,6 +94,19 @@ parse_args() {
                 pull_image=no
                 shift
                 ;;
+            --access|--bind-address|--web-port|--panel-url)
+                [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "$1 requires a value" >&2; exit 2; }
+                case "$1" in
+                    --access) access=$2 ;;
+                    --bind-address) requested_bind=$2 ;;
+                    --web-port) requested_port=$2 ;;
+                    --panel-url) requested_url=$2; url_was_requested=yes ;;
+                esac
+                access_flags=yes
+                shift 2
+                ;;
+            --configure-access) configure_access=yes; shift ;;
+            --non-interactive) non_interactive=yes; shift ;;
             -h|--help)
                 usage
                 exit 0
@@ -97,6 +128,10 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 if [ "$action" = update ] && [ "$mode" = fresh ]; then
     echo "--update cannot be combined with --fresh; updates always preserve the existing host setup." >&2
+    exit 2
+fi
+if [ "$configure_access" = yes ] && { [ "$access_flags" = yes ] || [ "$non_interactive" = yes ]; }; then
+    echo '--configure-access cannot be combined with access flags or --non-interactive.' >&2
     exit 2
 fi
 
@@ -228,7 +263,8 @@ for support_path in \
     packaging/awg-docui-tmpfiles.conf \
     packaging/awg-docui-vpn@.service \
     scripts/check-agent-unit.sh \
-    scripts/setup-debian-repositories.sh; do
+    scripts/setup-debian-repositories.sh \
+    scripts/web-access.sh; do
     [ -f "$SCRIPT_DIR/$support_path" ] || support_complete=no
 done
 
@@ -287,7 +323,8 @@ for deployment_destination in \
     "$INSTALL_DIR/install-host-agent.sh" \
     "$INSTALL_DIR/uninstall-host-agent.sh" \
     "$INSTALL_DIR/packaging" \
-    "$INSTALL_DIR/scripts"; do
+    "$INSTALL_DIR/scripts" \
+    "$INSTALL_DIR/scripts/web-access.sh"; do
     if [ -L "$deployment_destination" ]; then
         echo "Refusing deployment symlink: $deployment_destination" >&2
         exit 1
@@ -323,6 +360,24 @@ elif [ "$mode" = fresh ] && [ "$existing_awg" = yes ]; then
 fi
 
 echo "AWG DocUI installation mode: $mode"
+
+# Validate access settings before packages, agent or containers are changed.
+# shellcheck source=scripts/web-access.sh
+. "$SCRIPT_DIR/scripts/web-access.sh"
+configure_web_access "$INSTALL_DIR/.env"
+
+# Changing only panel access on an installed deployment needs no downloads,
+# package operations or host-agent restart. Explicit --update still updates it.
+if [ "$action" = install ] && [ -f "$INSTALL_DIR/.env" ] && [ -f "$INSTALL_DIR/docker-compose.yml" ] \
+    && { [ "$configure_access" = yes ] || [ "$access_flags" = yes ]; }; then
+    docker compose version >/dev/null 2>&1 || { echo 'Docker Compose v2 is required.' >&2; exit 1; }
+    stage 5 'Updating panel access configuration'
+    write_web_access "$INSTALL_DIR/.env"
+    stage 6 'Applying panel access to the Web UI container'
+    (cd "$INSTALL_DIR" && docker compose up -d --wait --wait-timeout 30)
+    print_web_access
+    exit 0
+fi
 
 install_fresh_dependencies() {
     [ -r "$OS_RELEASE_FILE" ] || { echo "Cannot read $OS_RELEASE_FILE" >&2; exit 1; }
@@ -495,43 +550,27 @@ socket_gid=$(getent group awg-docui | cut -d: -f3)
 stage 5 'Writing AWG DocUI management configuration'
 
 install -d -m 0755 "$INSTALL_DIR" "$INSTALL_DIR/packaging" "$INSTALL_DIR/scripts" "$INSTALL_DIR/LICENSES"
-install -m 0755 "$SCRIPT_DIR/install.sh" "$INSTALL_DIR/install.sh"
-install -m 0755 "$SCRIPT_DIR/install-host-agent.sh" "$INSTALL_DIR/install-host-agent.sh"
-install -m 0755 "$SCRIPT_DIR/uninstall-host-agent.sh" "$INSTALL_DIR/uninstall-host-agent.sh"
-install -m 0755 "$SCRIPT_DIR/scripts/check-agent-unit.sh" "$INSTALL_DIR/scripts/check-agent-unit.sh"
-install -m 0755 "$SCRIPT_DIR/scripts/setup-debian-repositories.sh" "$INSTALL_DIR/scripts/setup-debian-repositories.sh"
-install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-agent.service" "$INSTALL_DIR/packaging/awg-docui-agent.service"
-install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-tmpfiles.conf" "$INSTALL_DIR/packaging/awg-docui-tmpfiles.conf"
-install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-vpn@.service" "$INSTALL_DIR/packaging/awg-docui-vpn@.service"
-install -m 0644 "$SCRIPT_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
-install -m 0600 "$SCRIPT_DIR/.env.example" "$INSTALL_DIR/.env.example"
-install -m 0644 "$SCRIPT_DIR/LICENSE" "$INSTALL_DIR/LICENSE"
-install -m 0644 "$SCRIPT_DIR/NOTICE" "$INSTALL_DIR/NOTICE"
-install -m 0644 "$SCRIPT_DIR/THIRD_PARTY_NOTICES.txt" "$INSTALL_DIR/THIRD_PARTY_NOTICES.txt"
-install -m 0644 "$SCRIPT_DIR/LICENSES/Apache-2.0.txt" "$INSTALL_DIR/LICENSES/Apache-2.0.txt"
-install -m 0644 "$SCRIPT_DIR/LICENSES/MPL-2.0.txt" "$INSTALL_DIR/LICENSES/MPL-2.0.txt"
-if [ -s "$SCRIPT_DIR/VERSION" ]; then
-    install -m 0644 "$SCRIPT_DIR/VERSION" "$INSTALL_DIR/VERSION"
+if [ "$SCRIPT_DIR" != "$(CDPATH='' cd -- "$INSTALL_DIR" && pwd)" ]; then
+    install -m 0755 "$SCRIPT_DIR/install.sh" "$INSTALL_DIR/install.sh"
+    install -m 0755 "$SCRIPT_DIR/install-host-agent.sh" "$INSTALL_DIR/install-host-agent.sh"
+    install -m 0755 "$SCRIPT_DIR/uninstall-host-agent.sh" "$INSTALL_DIR/uninstall-host-agent.sh"
+    install -m 0755 "$SCRIPT_DIR/scripts/check-agent-unit.sh" "$INSTALL_DIR/scripts/check-agent-unit.sh"
+    install -m 0755 "$SCRIPT_DIR/scripts/setup-debian-repositories.sh" "$INSTALL_DIR/scripts/setup-debian-repositories.sh"
+    install -m 0644 "$SCRIPT_DIR/scripts/web-access.sh" "$INSTALL_DIR/scripts/web-access.sh"
+    install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-agent.service" "$INSTALL_DIR/packaging/awg-docui-agent.service"
+    install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-tmpfiles.conf" "$INSTALL_DIR/packaging/awg-docui-tmpfiles.conf"
+    install -m 0644 "$SCRIPT_DIR/packaging/awg-docui-vpn@.service" "$INSTALL_DIR/packaging/awg-docui-vpn@.service"
+    install -m 0644 "$SCRIPT_DIR/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
+    install -m 0600 "$SCRIPT_DIR/.env.example" "$INSTALL_DIR/.env.example"
+    install -m 0644 "$SCRIPT_DIR/LICENSE" "$INSTALL_DIR/LICENSE"
+    install -m 0644 "$SCRIPT_DIR/NOTICE" "$INSTALL_DIR/NOTICE"
+    install -m 0644 "$SCRIPT_DIR/THIRD_PARTY_NOTICES.txt" "$INSTALL_DIR/THIRD_PARTY_NOTICES.txt"
+    install -m 0644 "$SCRIPT_DIR/LICENSES/Apache-2.0.txt" "$INSTALL_DIR/LICENSES/Apache-2.0.txt"
+    install -m 0644 "$SCRIPT_DIR/LICENSES/MPL-2.0.txt" "$INSTALL_DIR/LICENSES/MPL-2.0.txt"
+    if [ -s "$SCRIPT_DIR/VERSION" ]; then
+        install -m 0644 "$SCRIPT_DIR/VERSION" "$INSTALL_DIR/VERSION"
+    fi
 fi
-
-set_env_value() {
-    env_file=$1
-    env_key=$2
-    env_value=$3
-    env_tmp=$(mktemp "$env_file.tmp.XXXXXX")
-    awk -v key="$env_key" -v value="$env_value" '
-        BEGIN { found=0 }
-        index($0, key "=") == 1 {
-            if (!found) print key "=" value
-            found=1
-            next
-        }
-        { print }
-        END { if (!found) print key "=" value }
-    ' "$env_file" > "$env_tmp"
-    chmod 0600 "$env_tmp"
-    mv -f "$env_tmp" "$env_file"
-}
 
 env_path=$INSTALL_DIR/.env
 generated_password=""
@@ -540,6 +579,7 @@ if [ ! -f "$env_path" ]; then
 fi
 set_env_value "$env_path" AWG_DOCUI_AGENT_GID "$socket_gid"
 set_env_value "$env_path" AWG_DOCUI_IMAGE "$image_ref"
+write_web_access "$env_path"
 
 password_hash=$(sed -n 's/^WEB_UI_PASSWORD=//p' "$env_path" | sed -n '$p')
 if [ -z "$password_hash" ]; then
@@ -569,8 +609,7 @@ done
 echo
 echo "AWG DocUI is installed in $INSTALL_DIR"
 echo "Container image: $image_ref"
-echo "Panel URL on the server: http://127.0.0.1:54845"
-echo "Open it locally with: ssh -L 54845:127.0.0.1:54845 root@YOUR_SERVER"
+print_web_access
 echo "Web UI user: $(sed -n 's/^WEB_UI_USER=//p' "$env_path" | sed -n '$p')"
 if [ -n "$generated_password" ]; then
     if [ "${AWG_DOCUI_SECRET_FD:-}" = 3 ]; then

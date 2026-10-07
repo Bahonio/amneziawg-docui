@@ -92,8 +92,8 @@ func main() {
 	httpapi.New(mgr).RegisterRoutes(app)
 	assets.Mount(app)
 
-	fmt.Printf("Listening on :%d\n", settings.WebUIPort)
-	log.Fatal(app.Listen(":" + strconv.Itoa(settings.WebUIPort)))
+	fmt.Printf("Web listener on :%d; host access is configured by Docker port publishing (WEB_UI_BIND_ADDRESS).\n", settings.WebUIPort)
+	log.Fatal(app.Listen(":"+strconv.Itoa(settings.WebUIPort), fiber.ListenConfig{DisableStartupMessage: true}))
 }
 
 func runHealthcheck() error {

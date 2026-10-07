@@ -7,7 +7,10 @@ services:
     container_name: awg-docui
     restart: unless-stopped
     ports:
-      - "${WEB_UI_BIND_ADDRESS:-127.0.0.1}:${WEB_UI_PORT:-54845}:${WEB_UI_PORT:-54845}/tcp"
+      - target: ${WEB_UI_PORT:-54845}
+        published: "${WEB_UI_PORT:-54845}"
+        host_ip: "${WEB_UI_BIND_ADDRESS:-127.0.0.1}"
+        protocol: tcp
     env_file:
       - path: .env
         required: true

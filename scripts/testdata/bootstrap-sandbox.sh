@@ -9,6 +9,7 @@ if [ "${AWG_DOCUI_BOOTSTRAP_SANDBOX:-}" != yes ] \
 fi
 
 scenario=${AWG_DOCUI_BOOTSTRAP_SCENARIO:?}
+trap 'test_status=$?; if [ "$test_status" -ne 0 ] && [ -f /fixture/output ]; then cat /fixture/output >&2; fi' EXIT
 distribution=${AWG_DOCUI_BOOTSTRAP_DISTRIBUTION:-ubuntu:24.04}
 test_arch=${AWG_DOCUI_BOOTSTRAP_ARCH:-amd64}
 mkdir -p /fixture/bin /run/systemd/system /etc/systemd/system \
@@ -109,6 +110,14 @@ cat > /fixture/bin/groupadd <<'SH'
 #!/bin/sh
 [ "$*" = '--system awg-docui' ] || exit 1
 touch /fixture/group-created
+SH
+cat > /fixture/bin/ip <<'SH'
+#!/bin/sh
+case "$*" in
+    '-o addr show to 10.66.66.1') echo '2: awg0 inet 10.66.66.1/24 scope global awg0' ;;
+    '-o addr show scope global') echo '2: awg0 inet 10.66.66.1/24 scope global awg0' ;;
+    *) exit 0 ;;
+esac
 SH
 
 create_awg_commands() {
@@ -358,6 +367,7 @@ WEB_UI_USER=operator
 WEB_UI_PASSWORD=preserved-hash
 WEB_UI_PORT=54845
 WEB_UI_BIND_ADDRESS=10.66.66.1
+WEB_UI_URL=https://panel.example.com
 EOF
         AWG_DOCUI_SKIP_BUNDLE_DOWNLOAD=yes \
         sh /source/install.sh --update --version v0.2.0 \
@@ -369,6 +379,8 @@ EOF
         grep -Fxq 'WEB_UI_USER=operator' /opt/awg-docui/.env
         grep -Fxq 'WEB_UI_PASSWORD=preserved-hash' /opt/awg-docui/.env
         grep -Fxq 'WEB_UI_BIND_ADDRESS=10.66.66.1' /opt/awg-docui/.env
+        grep -Fxq 'WEB_UI_URL=https://panel.example.com' /opt/awg-docui/.env
+        grep -Fq 'Panel URL: https://panel.example.com' /fixture/output
         ! grep -Fq 'Web UI password:' /fixture/output
         echo 'PASS: full update preserves credentials and settings while selecting the requested release'
         ;;
@@ -383,18 +395,82 @@ EOF
         cp /source/packaging/awg-docui-agent.service \
             /source/packaging/awg-docui-vpn@.service /source/packaging/awg-docui-tmpfiles.conf /fixture/release/bundle/packaging/
         cp /source/scripts/check-agent-unit.sh /source/scripts/setup-debian-repositories.sh /fixture/release/bundle/scripts/
+        cp /source/scripts/web-access.sh /fixture/release/bundle/scripts/
         printf 'v0.3.0\n' > /fixture/release/bundle/VERSION
         tar -C /fixture/release/bundle -czf /fixture/release/awg-docui-install-bundle.tar.gz .
         (cd /fixture/release && sha256sum awg-docui-install-bundle.tar.gz > SHA256SUMS)
         cp /source/install.sh /fixture/standalone-install.sh
-        sh /fixture/standalone-install.sh --adopt \
+        sh /fixture/standalone-install.sh --adopt --access vpn --bind-address 10.66.66.1 --web-port 8080 \
             --agent-binary /fixture/agent > /fixture/output
         grep -Fxq 'v0.3.0' /opt/awg-docui/VERSION
         grep -Fxq 'AWG_DOCUI_IMAGE=ghcr.io/bahonio/awg-docui:latest' /opt/awg-docui/.env
         assert_license_install
         assert_no_host_package_changes
         assert_install_log
+        grep -Fxq 'WEB_UI_BIND_ADDRESS=10.66.66.1' /opt/awg-docui/.env
+        grep -Fq 'Panel URL: http://10.66.66.1:8080' /fixture/output
         echo 'PASS: standalone installer verifies and executes the published support bundle'
+        ;;
+    access-vpn|access-proxy|access-all)
+        prepare_existing_host
+        case "$scenario" in
+            access-vpn) set -- --access vpn --bind-address 10.66.66.1 --web-port 8080
+                expected_bind=10.66.66.1; expected_url=http://10.66.66.1:8080 ;;
+            access-proxy) set -- --access proxy --panel-url https://panel.example.com --web-port 8080
+                expected_bind=127.0.0.1; expected_url=https://panel.example.com ;;
+            access-all) set -- --access all --web-port 8080
+                expected_bind=0.0.0.0; expected_url=http://YOUR_SERVER_IP:8080 ;;
+        esac
+        AWG_DOCUI_SKIP_BUNDLE_DOWNLOAD=yes \
+            sh /source/install.sh --adopt --agent-binary /fixture/agent "$@" > /fixture/output
+        grep -Fxq "WEB_UI_BIND_ADDRESS=$expected_bind" /opt/awg-docui/.env
+        grep -Fxq 'WEB_UI_PORT=8080' /opt/awg-docui/.env
+        grep -Fq "Panel URL: $expected_url" /fixture/output
+        assert_no_host_package_changes
+        assert_install_log
+        [ ! -e /fixture/forbidden-systemctl ]
+        cmp /source/scripts/web-access.sh /opt/awg-docui/scripts/web-access.sh
+        echo "PASS: $scenario configures and reports access without VPN changes"
+        ;;
+    access-invalid)
+        prepare_existing_host
+        for invalid in bad-port absent-ip bad-url conflicting-mode; do
+            case "$invalid" in
+                bad-port) set -- --web-port 65536 ;;
+                absent-ip) set -- --bind-address 192.0.2.99 ;;
+                bad-url) set -- --panel-url https://panel.example.com/path ;;
+                conflicting-mode) set -- --access ssh --bind-address 10.66.66.1 ;;
+            esac
+            if AWG_DOCUI_SKIP_BUNDLE_DOWNLOAD=yes \
+                sh /source/install.sh --adopt --agent-binary /fixture/agent "$@" > /fixture/output 2>&1; then
+                echo "FAIL: $invalid was accepted" >&2; exit 1
+            fi
+            [ ! -e /fixture/docker.log ]
+            [ ! -e /opt/awg-docui/.env ]
+            ! grep -Eq '(^| )(enable|restart|start|stop)( |$)' /fixture/systemctl.log
+            assert_no_host_package_changes
+        done
+        echo 'PASS: invalid access is rejected before packages, agent, container or settings change'
+        ;;
+    access-reconfigure)
+        prepare_existing_host
+        cp /source/docker-compose.yml /opt/awg-docui/docker-compose.yml
+        cat > /opt/awg-docui/.env <<'EOF'
+WEB_UI_BIND_ADDRESS=127.0.0.1
+WEB_UI_PORT=54845
+WEB_UI_USER=operator
+WEB_UI_PASSWORD=preserved-hash
+EOF
+        AWG_DOCUI_SKIP_BUNDLE_DOWNLOAD=yes \
+            sh /source/install.sh --bind-address 10.66.66.1 --web-port 8080 > /fixture/output
+        grep -Fxq 'WEB_UI_BIND_ADDRESS=10.66.66.1' /opt/awg-docui/.env
+        grep -Fxq 'WEB_UI_PORT=8080' /opt/awg-docui/.env
+        grep -Fxq 'WEB_UI_PASSWORD=preserved-hash' /opt/awg-docui/.env
+        grep -Fxq 'compose up -d --wait --wait-timeout 30' /fixture/docker.log
+        ! grep -Eq '(^| )(enable|restart|start|stop)( |$)' /fixture/systemctl.log
+        [ ! -e /fixture/curl.log ]
+        assert_no_host_package_changes
+        echo 'PASS: access changes recreate only the panel, without downloads or host-agent restart'
         ;;
     unhealthy)
         prepare_existing_host
