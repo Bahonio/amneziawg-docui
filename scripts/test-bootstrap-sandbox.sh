@@ -23,7 +23,7 @@ run_scenario() {
         sh /source/scripts/testdata/bootstrap-sandbox.sh
 }
 
-for scenario in fresh adopt update bundle unhealthy symlink log-symlink; do
+for scenario in fresh adopt update bundle access-vpn access-proxy access-all access-invalid access-reconfigure unhealthy symlink log-symlink; do
     run_scenario ubuntu:24.04 "$scenario" amd64
 done
 run_scenario ubuntu:22.04 fresh amd64
